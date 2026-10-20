@@ -1,0 +1,146 @@
+{
+  "name": "tangleworks",
+  "global": {
+    "total_loc": 6960,
+    "unsafe_ratio": 0.17,
+    "test_coverage": 0.38,
+    "avg_complexity": 0.73
+  },
+  "modules": [
+    {
+      "name": "main",
+      "loc": 180,
+      "complexity": 0.32,
+      "unsafe_count": 0,
+      "depends_on": ["cli"],
+      "depended_by_count": 1,
+      "test_coverage": 0.62,
+      "todo_count": 2
+    },
+    {
+      "name": "cli",
+      "loc": 320,
+      "complexity": 0.45,
+      "unsafe_count": 2,
+      "depends_on": ["config_loader", "auth"],
+      "depended_by_count": 1,
+      "test_coverage": 0.48,
+      "todo_count": 5
+    },
+    {
+      "name": "config_loader",
+      "loc": 540,
+      "complexity": 0.62,
+      "unsafe_count": 3,
+      "depends_on": ["cache"],
+      "depended_by_count": 6,
+      "test_coverage": 0.34,
+      "todo_count": 8
+    },
+    {
+      "name": "auth",
+      "loc": 480,
+      "complexity": 0.58,
+      "unsafe_count": 5,
+      "depends_on": ["api_client"],
+      "depended_by_count": 4,
+      "test_coverage": 0.52,
+      "todo_count": 6
+    },
+    {
+      "name": "api_client",
+      "loc": 860,
+      "complexity": 0.84,
+      "unsafe_count": 8,
+      "depends_on": ["cache", "telemetry"],
+      "depended_by_count": 5,
+      "test_coverage": 0.22,
+      "todo_count": 12
+    },
+    {
+      "name": "cache",
+      "loc": 610,
+      "complexity": 0.77,
+      "unsafe_count": 4,
+      "depends_on": ["legacy_bridge"],
+      "depended_by_count": 7,
+      "test_coverage": 0.31,
+      "todo_count": 7
+    },
+    {
+      "name": "scheduler",
+      "loc": 730,
+      "complexity": 0.88,
+      "unsafe_count": 6,
+      "depends_on": ["job_queue", "telemetry"],
+      "depended_by_count": 3,
+      "test_coverage": 0.27,
+      "todo_count": 9
+    },
+    {
+      "name": "job_queue",
+      "loc": 520,
+      "complexity": 0.73,
+      "unsafe_count": 3,
+      "depends_on": ["worker_pool"],
+      "depended_by_count": 2,
+      "test_coverage": 0.36,
+      "todo_count": 4
+    },
+    {
+      "name": "worker_pool",
+      "loc": 980,
+      "complexity": 0.91,
+      "unsafe_count": 9,
+      "depends_on": ["renderer", "cache"],
+      "depended_by_count": 3,
+      "test_coverage": 0.18,
+      "todo_count": 11
+    },
+    {
+      "name": "renderer",
+      "loc": 640,
+      "complexity": 0.66,
+      "unsafe_count": 2,
+      "depends_on": ["telemetry"],
+      "depended_by_count": 1,
+      "test_coverage": 0.41,
+      "todo_count": 6
+    },
+    {
+      "name": "telemetry",
+      "loc": 410,
+      "complexity": 0.52,
+      "unsafe_count": 1,
+      "depends_on": [],
+      "depended_by_count": 8,
+      "test_coverage": 0.57,
+      "todo_count": 3
+    },
+    {
+      "name": "legacy_bridge",
+      "loc": 690,
+      "complexity": 0.81,
+      "unsafe_count": 7,
+      "depends_on": ["api_client"],
+      "depended_by_count": 2,
+      "test_coverage": 0.15,
+      "todo_count": 14
+    }
+  ],
+  "call_path": [
+    "main",
+    "cli",
+    "config_loader",
+    "auth",
+    "api_client",
+    "cache",
+    "scheduler",
+    "job_queue",
+    "worker_pool",
+    "renderer",
+    "telemetry",
+    "legacy_bridge",
+    "worker_pool"
+  ]
+}

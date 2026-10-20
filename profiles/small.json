@@ -1,0 +1,62 @@
+{
+  "name": "lumen",
+  "global": {
+    "total_loc": 1280,
+    "unsafe_ratio": 0.0,
+    "test_coverage": 0.93,
+    "avg_complexity": 0.19
+  },
+  "modules": [
+    {
+      "name": "main",
+      "loc": 120,
+      "complexity": 0.12,
+      "unsafe_count": 0,
+      "depends_on": ["config", "parser"],
+      "depended_by_count": 5,
+      "test_coverage": 0.94,
+      "todo_count": 0
+    },
+    {
+      "name": "config",
+      "loc": 180,
+      "complexity": 0.08,
+      "unsafe_count": 0,
+      "depends_on": [],
+      "depended_by_count": 4,
+      "test_coverage": 0.97,
+      "todo_count": 0
+    },
+    {
+      "name": "parser",
+      "loc": 340,
+      "complexity": 0.24,
+      "unsafe_count": 0,
+      "depends_on": ["config"],
+      "depended_by_count": 3,
+      "test_coverage": 0.91,
+      "todo_count": 1
+    },
+    {
+      "name": "scheduler",
+      "loc": 260,
+      "complexity": 0.31,
+      "unsafe_count": 0,
+      "depends_on": ["config", "parser"],
+      "depended_by_count": 2,
+      "test_coverage": 0.89,
+      "todo_count": 0
+    },
+    {
+      "name": "reporter",
+      "loc": 380,
+      "complexity": 0.21,
+      "unsafe_count": 0,
+      "depends_on": ["scheduler"],
+      "depended_by_count": 1,
+      "test_coverage": 0.94,
+      "todo_count": 1
+    }
+  ],
+  "call_path": ["main", "config", "parser", "scheduler", "reporter"]
+}
