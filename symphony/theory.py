@@ -331,7 +331,6 @@ def voice_upper(
         else:
             score += abs(sum(combo) / voices - desired_span / 2 - low) * 0.04
 
-        score += rng.random() * 0.9
         if best is None or score < best[0]:
             best = (score, combo)
 
@@ -350,13 +349,13 @@ def choose_bass(
     center: int,
     rng: random.Random,
 ) -> int:
-    """Pick a root in a warm left-hand register with modest root movement."""
+    """Pick a root in the piano's C3-and-above left-hand lane."""
 
     candidates = [
-        pitch for pitch in range(36, 48) if pitch % 12 == chord.root_pc % 12
+        pitch for pitch in range(49, 61) if pitch % 12 == chord.root_pc % 12
     ]
     if not candidates:
-        candidates = [((chord.root_pc - 36) % 12) + 36]
+        candidates = [((chord.root_pc - 49) % 12) + 49]
 
     best: tuple[float, int] | None = None
     for pitch in candidates:
@@ -365,7 +364,6 @@ def choose_bass(
             movement = abs(pitch - previous)
             score += movement * 1.15
             score += max(0, movement - 7) * 1.8
-        score += rng.random() * 0.55
         if best is None or score < best[0]:
             best = (score, pitch)
 
@@ -392,7 +390,7 @@ def chord_tone_near(
     ]
     if not candidates:
         return nearest_pitch_with_pc(chord.root_pc, target, low, high)
-    return min(candidates, key=lambda pitch: (abs(pitch - target), rng.random()))
+    return min(candidates, key=lambda pitch: (abs(pitch - target), pitch))
 
 
 def _triad_quality(third_semitones: int | None, fifth_semitones: int) -> str:

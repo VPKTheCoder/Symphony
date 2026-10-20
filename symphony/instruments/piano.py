@@ -14,7 +14,8 @@ from dataclasses import dataclass
 import pretty_midi
 
 from symphony.form import Form, SectionPlan
-from symphony.styles import Style
+from symphony.styles import PianoPattern, Style
+from symphony.variation import VariationPlan
 from symphony.theory import (
     Chord,
     build_chord,
@@ -34,7 +35,12 @@ class _Harmony:
     upper: tuple[int, ...]
 
 
-def render_piano(form: Form, style: Style, rng: random.Random) -> pretty_midi.Instrument:
+def render_piano(
+    form: Form,
+    style: Style,
+    rng: random.Random,
+    plan: VariationPlan,
+) -> pretty_midi.Instrument:
     instrument = pretty_midi.Instrument(
         program=PROGRAM_ACOUSTIC_GRAND,
         is_drum=False,
@@ -44,26 +50,37 @@ def render_piano(form: Form, style: Style, rng: random.Random) -> pretty_midi.In
     instrument.control_changes.extend(
         [
             pretty_midi.ControlChange(number=7, value=100, time=0.0),
-            pretty_midi.ControlChange(number=10, value=64, time=0.0),
+            pretty_midi.ControlChange(number=10, value=74, time=0.0),
+            pretty_midi.ControlChange(number=91, value=32, time=0.0),
         ]
     )
 
     previous_upper: tuple[int, ...] | None = None
     previous_bass: int | None = None
+    voicing_style = next(
+        item for item in style.voicing_styles if item.name == plan.voicing_style
+    )
 
     for section in form.sections:
+        if plan.role_for(section.name, "piano") == "out":
+            continue
         current: _Harmony | None = None
         for local_bar in range(section.bars):
             if local_bar % section.bars_per_chord == 0:
-                chord = _choose_chord(form, section, local_bar, style, rng)
+                has_todo = local_bar == min(1, section.bars - 1) and any(
+                    module.todo_count > 0 for module in section.modules
+                )
+                chord = _choose_chord(
+                    form, section, local_bar, style, plan, sus4=has_todo
+                )
                 upper = voice_upper(
                     chord,
-                    low=style.upper_floor,
-                    high=style.upper_ceiling,
+                    low=max(48, style.upper_floor + voicing_style.low_shift),
+                    high=min(102, style.upper_ceiling + voicing_style.high_shift),
                     previous=previous_upper,
-                    target_top=_top_target(form, section, local_bar, style),
+                    target_top=_top_target(form, section, local_bar, style, plan),
                     voices=style.upper_voices,
-                    max_gap=style.upper_gap,
+                    max_gap=voicing_style.max_gap,
                     rng=rng,
                 )
                 bass = choose_bass(
@@ -94,7 +111,35 @@ def render_piano(form: Form, style: Style, rng: random.Random) -> pretty_midi.In
                 global_beat=global_beat,
                 harmony=current,
                 rng=rng,
+                plan=plan,
             )
+
+    # One in-scale tritone marks the section carrying the highest unsafe load.
+    unsafe_sections = [
+        section for section in form.sections
+        if any(module.unsafe_count > 0 for module in section.modules)
+    ]
+    if unsafe_sections:
+        section = max(
+            unsafe_sections,
+            key=lambda candidate: sum(module.unsafe_count for module in candidate.modules),
+        )
+        local_bar = min(section.bars - 1, section.bars // 2)
+        beat = (section.start_bar + local_bar) * form.beats_per_bar + 2.0
+        pcs = sorted({(form.key.tonic_pc + interval) % 12 for interval in form.key.intervals})
+        tritones = [(left, right) for left in pcs for right in pcs if (right - left) % 12 == 6]
+        if tritones:
+            left, right = tritones[0]
+            for pitch_class, target in ((left, 65), (right, 71)):
+                pitch = min(
+                    (value for value in range(60, 85) if value % 12 == pitch_class),
+                    key=lambda value: abs(value - target),
+                )
+                _add_note(
+                    instrument, pitch, beat, duration=0.8,
+                    velocity=_velocity(style, section.intensity, 2.0, 2.0, rng),
+                    form=form, style=style, rng=rng,
+                )
 
     end_time = form.total_bars * form.beats_per_bar * form.seconds_per_beat
     instrument.control_changes.append(
@@ -115,29 +160,45 @@ def _play_bar(
     global_beat: float,
     harmony: _Harmony,
     rng: random.Random,
+    plan: VariationPlan,
 ) -> None:
+    pattern = next(item for item in style.piano_patterns if item.name == plan.pattern_for(section.name))
     if style.comp_style == "driving" and section.name in {
         "intro", "theme", "development", "climax"
     }:
         _play_driving_bar(
-            instrument, form, style, section, local_bar, global_beat, harmony, rng
+            instrument, form, style, section, local_bar, global_beat, harmony, rng,
+            plan, pattern,
         )
         return
     if section.name == "intro":
         _play_intro(
             instrument, form, style, section, local_bar, global_beat, harmony, rng
         )
+        if local_bar > 0 and local_bar % 2 == 1:
+            for beat in pattern.intro[:1]:
+                _add_chord(
+                    instrument,
+                    (harmony.upper[0], harmony.upper[-2], harmony.upper[-1]),
+                    global_beat + beat,
+                    duration=1.15,
+                    base_velocity=_velocity(style, section.intensity, beat, -8.0, rng),
+                    form=form, style=style, rng=rng, roll=True,
+                )
     elif section.name == "theme":
-        _play_theme(
-            instrument, form, style, section, local_bar, global_beat, harmony, rng
+        _play_varied_bar(
+            instrument, form, style, section, local_bar, global_beat, harmony,
+            rng, plan, pattern,
         )
     elif section.name == "development":
-        _play_development(
-            instrument, form, style, section, local_bar, global_beat, harmony, rng
+        _play_varied_bar(
+            instrument, form, style, section, local_bar, global_beat, harmony,
+            rng, plan, pattern,
         )
     elif section.name == "climax":
-        _play_climax(
-            instrument, form, style, section, local_bar, global_beat, harmony, rng
+        _play_varied_bar(
+            instrument, form, style, section, local_bar, global_beat, harmony,
+            rng, plan, pattern,
         )
     elif section.name == "resolution":
         _play_resolution(
@@ -158,6 +219,8 @@ def _play_driving_bar(
     global_beat: float,
     harmony: _Harmony,
     rng: random.Random,
+    plan: VariationPlan,
+    pattern: PianoPattern,
 ) -> None:
     if section.name == "intro":
         _add_note(
@@ -166,7 +229,7 @@ def _play_driving_bar(
             form=form, style=style, rng=rng,
         )
         if local_bar >= 1:
-            for beat in (0.5, 2.5):
+            for beat in pattern.intro:
                 _add_chord(
                     instrument,
                     (harmony.upper[0], harmony.upper[-2], harmony.upper[-1]),
@@ -178,11 +241,11 @@ def _play_driving_bar(
         return
 
     if section.name == "theme":
-        beats = (0.0, 0.75, 1.5, 2.0, 2.75, 3.5)
+        beats = pattern.theme
     elif section.name == "development":
-        beats = (0.0, 0.5, 1.5, 2.0, 2.5, 3.0, 3.5)
+        beats = pattern.development
     else:
-        beats = (0.0, 1.0, 1.5, 2.0, 3.0, 3.5)
+        beats = pattern.climax
 
     _add_note(
         instrument,
@@ -193,9 +256,11 @@ def _play_driving_bar(
         form=form, style=style, rng=rng,
     )
     for index, beat in enumerate(beats):
-        if section.name == "development":
+        if section.name == "development" or pattern.texture == "broken":
             pitches = (harmony.upper[(index + local_bar) % len(harmony.upper)],)
-        elif index % 2 == 0 or section.name == "climax":
+        elif pattern.texture == "high":
+            pitches = harmony.upper[-2:]
+        elif pattern.texture == "stabs" or index % 2 == 0 or section.name == "climax":
             pitches = (harmony.upper[0], harmony.upper[2], harmony.upper[-1])
         else:
             pitches = harmony.upper[-2:]
@@ -219,6 +284,91 @@ def _play_driving_bar(
                         velocity=max(18, velocity - 10),
                         form=form, style=style, rng=rng, top=True,
                     )
+
+
+def _play_varied_bar(
+    instrument: pretty_midi.Instrument,
+    form: Form,
+    style: Style,
+    section: SectionPlan,
+    local_bar: int,
+    global_beat: float,
+    harmony: _Harmony,
+    rng: random.Random,
+    plan: VariationPlan,
+    pattern: PianoPattern,
+) -> None:
+    if section.name == "climax":
+        beats = pattern.climax
+    elif section.name == "development":
+        beats = pattern.development
+    else:
+        beats = pattern.theme
+
+    bass_duration = 2.4 if section.name == "theme" else 3.2
+    _add_note(
+        instrument,
+        harmony.bass,
+        global_beat,
+        duration=bass_duration,
+        velocity=_velocity(style, section.intensity, 0.0, -2.0, rng),
+        form=form,
+        style=style,
+        rng=rng,
+    )
+    if style.comp_style == "swung_comp":
+        chord_duration = 0.86
+    elif section.name == "climax":
+        chord_duration = 1.35
+    else:
+        chord_duration = 1.05
+
+    for index, beat in enumerate(beats):
+        if pattern.texture == "broken" or section.name == "development":
+            pitches = (harmony.upper[(index + local_bar) % len(harmony.upper)],)
+        elif pattern.texture == "high":
+            pitches = harmony.upper[-2:]
+        elif pattern.texture == "stabs":
+            pitches = (harmony.upper[0], harmony.upper[-1])
+        else:
+            pitches = harmony.upper
+        accent = 1.5 if section.name == "climax" and beat % 2.0 == 0 else 0.0
+        velocity = _velocity(style, section.intensity, beat, accent, rng)
+        _add_chord(
+            instrument,
+            pitches,
+            global_beat + beat,
+            duration=chord_duration,
+            base_velocity=velocity,
+            form=form,
+            style=style,
+            rng=rng,
+            roll=True,
+        )
+
+    ornament = plan.ornament_for(section.name)
+    if ornament != "none" and local_bar % 2 == 1:
+        fill_beats = {
+            "high_reply": (3.0,),
+            "pickup": (3.0, 3.5),
+            "late_answer": (2.75, 3.5),
+            "turn": (3.0, 3.5),
+            "rising_fill": (2.5, 3.0, 3.5),
+            "octave_answer": (3.0, 3.5),
+        }.get(ornament, ())
+        for index, beat in enumerate(fill_beats):
+            pitch = harmony.upper[-1 - (index % min(2, len(harmony.upper)))]
+            _add_note(
+                instrument,
+                pitch,
+                global_beat + beat,
+                duration=0.34,
+                velocity=_velocity(style, section.intensity, beat, -4.0, rng),
+                form=form,
+                style=style,
+                rng=rng,
+                top=True,
+            )
 
 
 def _play_intro(
@@ -287,6 +437,20 @@ def _play_intro(
         return
 
     if local_bar >= section.bars - 2:
+        # Keep the last introductory bar connected to the theme. The previous
+        # sparse version left a multi-beat gap at this section boundary.
+        if local_bar == section.bars - 1:
+            _add_chord(
+                instrument,
+                (harmony.upper[0], harmony.upper[-2], harmony.upper[-1]),
+                global_beat + 1.0,
+                duration=2.8,
+                base_velocity=_velocity(style, section.intensity, 1.0, -7.0, rng),
+                form=form,
+                style=style,
+                rng=rng,
+                roll=True,
+            )
         return
     high = _high_chord_tone(harmony, style, rng, offset=5)
     _add_note(
@@ -742,28 +906,25 @@ def _choose_chord(
     section: SectionPlan,
     local_bar: int,
     style: Style,
-    rng: random.Random,
+    plan: VariationPlan,
+    *,
+    sus4: bool = False,
 ) -> Chord:
     degree = section.degrees[local_bar]
-    intensity = section.intensity
-    seventh_probability = style.seventh_probability * (0.78 + 0.40 * intensity)
-    ninth_probability = style.ninth_probability * (0.78 + 0.40 * intensity)
-    eleventh = (
-        style.eleventh_probability > 0.0
-        and rng.random() < style.eleventh_probability
-    )
-    seventh = rng.random() < seventh_probability
-    ninth = rng.random() < ninth_probability
-    add9 = (not ninth) and rng.random() < 0.14
+    color = plan.chord_color_for(section.name)
+    seventh = color in {"seventh", "ninth", "eleventh"}
+    ninth = color == "ninth"
+    eleventh = color == "eleventh" and "eleventh" in style.chord_colors
     if section.name in ("outro", "resolution") and local_bar >= section.bars - 2:
-        add9 = not ninth and rng.random() < 0.48
+        ninth = ninth or color == "seventh"
     return build_chord(
         form.key,
         degree,
         seventh=seventh,
         ninth=ninth,
-        add9=add9,
+        add9=False,
         eleventh=eleventh,
+        sus4=sus4,
     )
 
 
@@ -772,6 +933,7 @@ def _top_target(
     section: SectionPlan,
     local_bar: int,
     style: Style,
+    plan: VariationPlan,
 ) -> float:
     role_target = {
         "intro": 65.0,
@@ -783,14 +945,17 @@ def _top_target(
     }[section.name]
     register_shift = (style.upper_ceiling - 84.0) * 0.28
     phrase_arch = (0.0, 0.8, 1.5, 0.5)[local_bar % 4]
-    target = role_target + register_shift + phrase_arch * (0.7 + section.intensity)
+    target = (
+        role_target + register_shift + plan.register_shift
+        + phrase_arch * (0.7 + section.intensity)
+    )
     if section.name in ("resolution", "outro"):
         target -= local_bar / max(1, section.bars) * 2.0
     return max(55.0, min(style.upper_ceiling - 1.0, target))
 
 
 def _bass_center(section: SectionPlan) -> int:
-    return round(40.5 - section.intensity * 1.5)
+    return round(53.5 - section.intensity * 1.5)
 
 
 def _high_chord_tone(

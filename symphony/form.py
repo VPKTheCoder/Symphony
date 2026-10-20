@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
 from symphony.profile import ModuleProfile, Profile
 from symphony.styles import Style
-from symphony.theory import Key, choose_key, pick_progression
+from symphony.theory import Key
+from symphony.variation import VariationPlan
 
 CONTENT_SECTIONS = ("theme", "development", "climax", "resolution")
 SECTION_BASE_INTENSITY = {
@@ -71,9 +71,10 @@ class Form:
         )
 
 
-def build_form(profile: Profile, style: Style, rng: random.Random) -> Form:
-    key = choose_key(profile.health, rng, style.bright_mode_probability)
-    tempo = style.tempo_for(profile.global_metrics.avg_complexity, rng.random())
+def build_form(profile: Profile, style: Style, plan: VariationPlan) -> Form:
+    key = plan.key
+    # Tempo and form are pinned to the profile, never sampled per arrangement.
+    tempo = style.tempo_for(profile.global_metrics.avg_complexity, 0.5)
 
     seconds_per_bar = 4.0 * 60.0 / tempo
     raw_bars = style.target_seconds / seconds_per_bar
@@ -99,21 +100,8 @@ def build_form(profile: Profile, style: Style, rng: random.Random) -> Form:
         bar_allocation["development"] += missing
 
     open_cadence = profile.global_metrics.test_coverage < 0.55
-    progressions = {
-        role: pick_progression(key, role, rng)
-        for role in ("intro", "main", "development", "climax", "resolution", "outro")
-    }
-
     sections: list[SectionPlan] = []
     start_bar = 0
-    role_to_progression = {
-        "intro": "intro",
-        "theme": "main",
-        "development": "development",
-        "climax": "climax",
-        "resolution": "resolution",
-        "outro": "outro",
-    }
     role_to_modules = {
         "intro": (),
         "theme": grouped["theme"],
@@ -135,8 +123,8 @@ def build_form(profile: Profile, style: Style, rng: random.Random) -> Form:
         bars = role_bars[role]
         bars_per_chord = 2 if role in ("intro", "outro") else 1
         section_modules = role_to_modules[role]
-        intensity = _section_intensity(role, section_modules)
-        progression = progressions[role_to_progression[role]]
+        intensity = _section_intensity(role, section_modules, plan)
+        progression = plan.progression_for(role)
         degrees = _degrees_for_bars(
             progression,
             bars=bars,
@@ -270,7 +258,11 @@ def _degrees_for_bars(
     return tuple(degrees)
 
 
-def _section_intensity(role: str, modules: tuple[ModuleProfile, ...]) -> float:
+def _section_intensity(
+    role: str,
+    modules: tuple[ModuleProfile, ...],
+    plan: VariationPlan,
+) -> float:
     base = SECTION_BASE_INTENSITY[role]
     if not modules:
         return base
@@ -278,4 +270,9 @@ def _section_intensity(role: str, modules: tuple[ModuleProfile, ...]) -> float:
     # Keep the fixed dramatic arc dominant; module data only shapes it slightly
     # until the dedicated tension pass.
     shaped = base + (complexity - 0.5) * 0.08
-    return max(0.05, min(1.0, shaped))
+    shape_shift = {
+        "theme": plan.build_shape.theme_shift,
+        "development": plan.build_shape.development_shift,
+        "resolution": plan.build_shape.resolution_shift,
+    }.get(role, 0.0)
+    return max(0.05, min(1.0, shaped + shape_shift))

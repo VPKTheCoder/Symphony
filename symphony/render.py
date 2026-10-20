@@ -24,6 +24,7 @@ class RenderError(RuntimeError):
 class RenderResult:
     wav_path: Path
     mp3_path: Path
+    stem_paths: tuple[Path, ...] = ()
 
 
 def render_track(
@@ -34,6 +35,7 @@ def render_track(
     style: Style,
     soundfont: str | Path | None = None,
     fluidsynth: str | Path | None = None,
+    stems: bool = False,
 ) -> RenderResult:
     midi = Path(midi_path)
     wav = Path(wav_path)
@@ -129,7 +131,31 @@ def render_track(
     _run(mp3_command, "ffmpeg (MP3 encode)")
 
     raw.unlink(missing_ok=True)
-    return RenderResult(wav_path=wav, mp3_path=mp3)
+    stem_paths: list[Path] = []
+    if stems:
+        source = pretty_midi.PrettyMIDI(str(midi))
+        for index, track in enumerate(source.instruments):
+            stem_midi = pretty_midi.PrettyMIDI(initial_tempo=source.estimate_tempo())
+            stem_midi.time_signature_changes = list(source.time_signature_changes)
+            stem_midi.instruments.append(track)
+            stem_midi_path = wav.with_name(f"{wav.stem}_{_safe_stem_name(track.name, index)}.mid")
+            stem_wav = wav.with_name(f"{wav.stem}_{_safe_stem_name(track.name, index)}.wav")
+            stem_mp3 = stem_wav.with_suffix(".mp3")
+            stem_midi.write(str(stem_midi_path))
+            render_track(
+                stem_midi_path, stem_wav, stem_mp3, style=style,
+                soundfont=sf2, fluidsynth=synth, stems=False,
+            )
+            stem_midi_path.unlink(missing_ok=True)
+            stem_mp3.unlink(missing_ok=True)
+            stem_paths.append(stem_wav)
+    return RenderResult(wav_path=wav, mp3_path=mp3, stem_paths=tuple(stem_paths))
+
+
+def _safe_stem_name(name: str, index: int) -> str:
+    slug = "".join(character.lower() if character.isalnum() else "_" for character in name)
+    slug = "_".join(part for part in slug.split("_") if part)
+    return slug or f"instrument_{index + 1}"
 
 
 def _find_soundfont(explicit: str | Path | None) -> Path:

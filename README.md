@@ -2,9 +2,9 @@
 
 Turn a software codebase profile into an instrumental track.
 
-**Stage 2, step 1 of 6 is built:** theory, functional harmony, piano voicing and
-the complete MIDI → WAV → MP3 pipeline. Bass, drums, violin/leitmotifs and the
-full code-metric tension map come in the next listening passes.
+**Stage 2 lineup:** acoustic grand piano, bass, GM drum kit (MIDI channel 10),
+violin lead, and guitar. All five tracks are implemented. The composer is
+instrumental only.
 
 ## Current previews
 
@@ -19,6 +19,15 @@ Step 1b listening previews (seed 42): `out/step1b_small_cinematic`,
 `out/step1b_small_lofi`, `out/step1b_small_anthem`,
 `out/step1b_large_cinematic`, `out/step1b_large_lofi`, and
 `out/step1b_large_anthem`.
+
+Checkpoint A (piano + bass + drums, seed 42): `out/checkpointA_small_cinematic`,
+`out/checkpointA_small_lofi`, `out/checkpointA_small_anthem`, and the matching
+`out/checkpointA_large_*` files. Piano+bass stage previews are in
+`out/step2_bass_<profile>_<style>`.
+
+Checkpoint B (full band, seed 42): `out/checkpointB_small_cinematic`,
+`out/checkpointB_small_lofi`, `out/checkpointB_small_anthem`, and the matching
+`out/checkpointB_large_*` files.
 
 Each prefix has `.mid`, `.wav` and `.mp3`. The `.mid` is the deterministic
 artifact; the audio has light reverb, mastering and a fade.
@@ -60,6 +69,12 @@ out/track.wav
 out/track.mp3
 ```
 
+Add `--stems` to write one WAV per instrument beside the full mix:
+
+```powershell
+python -m symphony.compose --profile profiles/small.json --style anthem --seed 42 --out out/track --stems
+```
+
 Fast MIDI-only pass:
 
 ```powershell
@@ -90,10 +105,10 @@ Styles: `cinematic`, `lofi`, `anthem`.
   i–VI–III–VII in minor).
 - Chords are built by stacking scale tones, with style-dependent 7ths, 9ths and
   added 9ths. Every note stays inside the selected scale.
-- Upper voices are chosen by exhaustive search with smooth rank-to-rank voice
-  leading, wide spacing and a register target. Bass roots stay in C2–B2.
+- Upper voices are chosen with smooth voice leading and a style-specific
+  register target.
 
-### Piano
+### Instruments
 
 - Cinematic: wide rolled voicings, sustained bass, sparse high replies,
   arpeggiated development, full climax and a long tonic coda.
@@ -104,6 +119,26 @@ Styles: `cinematic`, `lofi`, `anthem`.
 - Humanization: per-note timing jitter, chord rolls, velocity accents and
   section/phrase dynamics. Sustain pedal is generated as CC64.
 - Same-pitch overlaps are clipped so repeated notes retrigger cleanly.
+- Piano left hand stays above C3; bass occupies C1–C3.
+- Bass follows chord roots with curated passing-tone, syncopated, and sustained
+  patterns. High dependency load favors longer, deeper roots.
+- The GM drum kit uses MIDI channel 10. Style grooves drop out in the intro and
+  outro; fills occur only at section boundaries, with a build before the climax.
+- The `VariationPlan` samples a curated arrangement matrix for all five parts.
+  Each section assigns every instrument `out`, `support`, or `lead`; at most one
+  part leads and at least one rests outside the climax.
+- Piano, bass, and drums carry per-track CC7 volume, CC10 pan, and CC91 reverb.
+- Violin motifs are two-bar, scale-constrained phrases derived from a stable
+  hash of each module name. Returning modules reuse their motif identity;
+  phrases repeat, transpose, invert, extend, or fragment, with chord tones on
+  strong beats, contour, rests, and unsafe-hotspot tremolo.
+- Cinematic guitar uses clean/acoustic arpeggios and swells that enter in the
+  later sections. Lo-fi uses soft jazzy stabs. Anthem uses driving power-chord
+  eighths and a guitar hook in the climax or when the violin rests.
+- Violin stays at G3 or above; guitar stays between E2 and E5. Guitar avoids
+  parallel melody doubling outside deliberate lead passages.
+- All five tracks carry CC7 volume, CC10 pan, and CC91 reverb. Piano and violin
+  sit right of center, guitar left of center, and bass/drums center.
 
 ### Rendering
 
@@ -115,8 +150,39 @@ Styles: `cinematic`, `lofi`, `anthem`.
 ## Determinism
 
 A single `random.Random(seed)` is created in `build_composition()` and passed
-explicitly to the form planner and instrument renderers. There is no global RNG.
+explicitly to the form planner and instrument renderers. Instruments share the
+plan for structural decisions. There is no global RNG.
 The same profile + style + seed produces a byte-identical MIDI file.
+
+## Variations
+
+Each composition samples one `VariationPlan`. The profile pins the mode family,
+tempo, section order and lengths, and module-to-section mapping. The plan varies
+the key within that family, per-section progressions and piano patterns, chord
+color, voicing/register, ornaments, build shape, bass/drum patterns, guitar
+program, motif treatment, and arrangement matrix. Its fingerprint is checked
+against earlier tracks in a batch; near-duplicate plans are resampled
+deterministically. Module motif identities remain pinned to their names.
+
+Generate a distinct batch with consecutive seeds and numbered output files:
+
+```powershell
+python -m symphony.compose `
+  --profile profiles/small.json `
+  --style anthem `
+  --seed 42 `
+  --variations 4 `
+  --out out/anthem
+```
+
+This writes `out/anthem_v1.mid/.wav/.mp3` through `out/anthem_v4.mid/.wav/.mp3`
+and prints each plan summary. Quality checks across seeds 1–20 for all profile
+and style combinations:
+
+```powershell
+python tools/validate_quality.py
+python -m unittest discover -s tests -v
+```
 
 Check note coverage (all profile/style pairs, seeds 1, 7, 42 and 99):
 
@@ -132,12 +198,12 @@ python tools/validate_silence.py
 | `avg_complexity` | Tempo within the style range |
 | `call_path` order | Section order and module grouping |
 | module `loc` | Section length (compressed with a square-root weight) |
-| module `complexity` | Section intensity shading now; drum density, extensions and violin register next |
-| `depended_by_count` | Long deep bass notes (step 2) |
-| `unsafe_count` | Tritone/diminished moment, violin tremolo (step 5) |
-| `test_coverage` | Open vs. resolved cadence (step 5) |
-| `todo_count` | Rest or sus4 suspension (step 5) |
-| repeated module in `call_path` | Leitmotif return (step 4) |
+| module `complexity` | Section intensity shading, busier drums, higher violin register, denser guitar rhythm |
+| `depended_by_count` | Longer, deeper bass notes |
+| `unsafe_count` | In-scale tritone/diminished moment and violin tremolo |
+| `test_coverage` | Open vs. resolved cadence |
+| `todo_count` | Brief rest and sus4 suspension in the rhythm section |
+| repeated module in `call_path` | Returning deterministic leitmotif |
 
 ## Code map
 
@@ -149,6 +215,11 @@ symphony/
   form.py            section pacing and harmony grid
   instruments/
     piano.py         piano arrangement
+    bass.py          root-following bass
+    drums.py         style grooves and boundary fills
+    motifs.py        stable module-name-derived motif shapes
+    violin.py        motif lead and development
+    guitar.py        style-specific comping and lead hooks
   compose.py         CLI and composition assembly
   render.py          FluidSynth + ffmpeg pipeline
 profiles/
@@ -156,10 +227,5 @@ profiles/
   large.json         messy 12-module profile
 ```
 
-## Not yet built
-
-- Electric/acoustic bass and module-dependency bass logic.
-- Drums and style grooves/fills.
-- Violin leitmotifs generated from module-name hashes.
-- Full module-level tension mapping and cadence control.
-- Final render polish pass.
+The full-band Checkpoint B previews are ready for listening; the next step is to
+collect feedback and make any mix or arrangement adjustments.
