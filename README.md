@@ -15,6 +15,11 @@ full code-metric tension map come in the next listening passes.
 | `out/step1_large_cinematic` | messy, 12 modules | cinematic | 3:13 |
 | `out/step1_large_lofi` | messy, 12 modules | lo-fi | 2:47 |
 
+Step 1b listening previews (seed 42): `out/step1b_small_cinematic`,
+`out/step1b_small_lofi`, `out/step1b_small_anthem`,
+`out/step1b_large_cinematic`, `out/step1b_large_lofi`, and
+`out/step1b_large_anthem`.
+
 Each prefix has `.mid`, `.wav` and `.mp3`. The `.mid` is the deterministic
 artifact; the audio has light reverb, mastering and a fade.
 
@@ -61,7 +66,7 @@ Fast MIDI-only pass:
 python -m symphony.compose --profile profiles/large.json --style lofi --seed 7 --out out/sketch --no-render
 ```
 
-Styles: `cinematic`, `lofi`.
+Styles: `cinematic`, `lofi`, `anthem`.
 
 ## What is implemented
 
@@ -79,8 +84,8 @@ Styles: `cinematic`, `lofi`.
 
 - Health from coverage, unsafe ratio and average complexity selects a mode
   family: major/lydian, dorian/mixolydian, or minor/phrygian.
-- `avg_complexity` maps inside the style tempo range (70–104 BPM for these two
-  styles).
+- `avg_complexity` maps inside the style tempo range (cinematic 70–104 BPM,
+  lo-fi 83–102 BPM, anthem 120–140 BPM).
 - Per-mode functional progression pools (for example I–V–vi–IV in major and
   i–VI–III–VII in minor).
 - Chords are built by stacking scale tones, with style-dependent 7ths, 9ths and
@@ -94,6 +99,8 @@ Styles: `cinematic`, `lofi`.
   arpeggiated development, full climax and a long tonic coda.
 - Lo-fi: swung eighths, softer dynamics, 7th/9th colour, syncopated stabs and a
   lower register.
+- Anthem: bright major-family harmony, driving syncopated chord accents,
+  punchy articulation, short pedal and octave doubling in the climax.
 - Humanization: per-note timing jitter, chord rolls, velocity accents and
   section/phrase dynamics. Sustain pedal is generated as CC64.
 - Same-pitch overlaps are clipped so repeated notes retrigger cleanly.
@@ -110,6 +117,12 @@ Styles: `cinematic`, `lofi`.
 A single `random.Random(seed)` is created in `build_composition()` and passed
 explicitly to the form planner and instrument renderers. There is no global RNG.
 The same profile + style + seed produces a byte-identical MIDI file.
+
+Check note coverage (all profile/style pairs, seeds 1, 7, 42 and 99):
+
+```powershell
+python tools/validate_silence.py
+```
 
 ## Metric mapping
 

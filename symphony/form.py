@@ -72,7 +72,7 @@ class Form:
 
 
 def build_form(profile: Profile, style: Style, rng: random.Random) -> Form:
-    key = choose_key(profile.health, rng)
+    key = choose_key(profile.health, rng, style.bright_mode_probability)
     tempo = style.tempo_for(profile.global_metrics.avg_complexity, rng.random())
 
     seconds_per_bar = 4.0 * 60.0 / tempo

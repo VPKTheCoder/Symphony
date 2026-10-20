@@ -116,6 +116,13 @@ def _play_bar(
     harmony: _Harmony,
     rng: random.Random,
 ) -> None:
+    if style.comp_style == "driving" and section.name in {
+        "intro", "theme", "development", "climax"
+    }:
+        _play_driving_bar(
+            instrument, form, style, section, local_bar, global_beat, harmony, rng
+        )
+        return
     if section.name == "intro":
         _play_intro(
             instrument, form, style, section, local_bar, global_beat, harmony, rng
@@ -142,6 +149,78 @@ def _play_bar(
         )
 
 
+def _play_driving_bar(
+    instrument: pretty_midi.Instrument,
+    form: Form,
+    style: Style,
+    section: SectionPlan,
+    local_bar: int,
+    global_beat: float,
+    harmony: _Harmony,
+    rng: random.Random,
+) -> None:
+    if section.name == "intro":
+        _add_note(
+            instrument, harmony.bass, global_beat, duration=3.8,
+            velocity=_velocity(style, section.intensity, 0.0, 2.0, rng),
+            form=form, style=style, rng=rng,
+        )
+        if local_bar >= 1:
+            for beat in (0.5, 2.5):
+                _add_chord(
+                    instrument,
+                    (harmony.upper[0], harmony.upper[-2], harmony.upper[-1]),
+                    global_beat + beat,
+                    duration=0.55,
+                    base_velocity=_velocity(style, section.intensity, beat, -3.0, rng),
+                    form=form, style=style, rng=rng, roll=True,
+                )
+        return
+
+    if section.name == "theme":
+        beats = (0.0, 0.75, 1.5, 2.0, 2.75, 3.5)
+    elif section.name == "development":
+        beats = (0.0, 0.5, 1.5, 2.0, 2.5, 3.0, 3.5)
+    else:
+        beats = (0.0, 1.0, 1.5, 2.0, 3.0, 3.5)
+
+    _add_note(
+        instrument,
+        harmony.bass,
+        global_beat,
+        duration=1.0 if section.name != "climax" else 1.4,
+        velocity=_velocity(style, section.intensity, 0.0, 4.0, rng),
+        form=form, style=style, rng=rng,
+    )
+    for index, beat in enumerate(beats):
+        if section.name == "development":
+            pitches = (harmony.upper[(index + local_bar) % len(harmony.upper)],)
+        elif index % 2 == 0 or section.name == "climax":
+            pitches = (harmony.upper[0], harmony.upper[2], harmony.upper[-1])
+        else:
+            pitches = harmony.upper[-2:]
+        velocity = _velocity(
+            style, section.intensity, beat,
+            5.0 if section.name == "climax" and beat in (0.0, 2.0) else 0.0,
+            rng,
+        )
+        duration = 0.62 if section.name != "climax" else 0.82
+        _add_chord(
+            instrument, pitches, global_beat + beat, duration=duration,
+            base_velocity=velocity, form=form, style=style, rng=rng,
+            roll=section.name == "climax",
+        )
+        if section.name == "climax" and style.climax_octaves:
+            for pitch in pitches:
+                if pitch + 12 <= 108:
+                    _add_note(
+                        instrument, pitch + 12, global_beat + beat,
+                        duration=duration - 0.1,
+                        velocity=max(18, velocity - 10),
+                        form=form, style=style, rng=rng, top=True,
+                    )
+
+
 def _play_intro(
     instrument: pretty_midi.Instrument,
     form: Form,
@@ -152,6 +231,20 @@ def _play_intro(
     harmony: _Harmony,
     rng: random.Random,
 ) -> None:
+    if form.health < 0.70 and local_bar == 1:
+        # Messier profiles need a clearer pickup into the opening phrase. The
+        # healthy cinematic profile keeps its original sparse introduction.
+        _add_chord(
+            instrument,
+            (harmony.upper[0], harmony.upper[-2], harmony.upper[-1]),
+            global_beat + 0.5,
+            duration=2.7,
+            base_velocity=_velocity(style, section.intensity, 0.5, 1.0, rng),
+            form=form,
+            style=style,
+            rng=rng,
+            roll=True,
+        )
     slot = local_bar % section.bars_per_chord == 0
     if slot:
         _add_note(
@@ -281,6 +374,20 @@ def _play_theme(
         rng=rng,
         roll=False,
     )
+    if swung and local_bar % 2 == 0:
+        # A light offbeat answer adds a little more pocket without crowding the
+        # relaxed swung comp.
+        _add_chord(
+            instrument,
+            harmony.upper[-2:],
+            global_beat + 2.5,
+            duration=0.65,
+            base_velocity=_velocity(style, section.intensity, 2.5, -9.0, rng),
+            form=form,
+            style=style,
+            rng=rng,
+            roll=False,
+        )
     if local_bar % 2 == 1:
         _add_note(
             instrument,
@@ -641,6 +748,10 @@ def _choose_chord(
     intensity = section.intensity
     seventh_probability = style.seventh_probability * (0.78 + 0.40 * intensity)
     ninth_probability = style.ninth_probability * (0.78 + 0.40 * intensity)
+    eleventh = (
+        style.eleventh_probability > 0.0
+        and rng.random() < style.eleventh_probability
+    )
     seventh = rng.random() < seventh_probability
     ninth = rng.random() < ninth_probability
     add9 = (not ninth) and rng.random() < 0.14
@@ -652,6 +763,7 @@ def _choose_chord(
         seventh=seventh,
         ninth=ninth,
         add9=add9,
+        eleventh=eleventh,
     )
 
 

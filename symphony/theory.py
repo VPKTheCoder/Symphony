@@ -128,10 +128,16 @@ class Chord:
         return any(tone.role == role for tone in self.tones)
 
 
-def choose_key(health: float, rng: random.Random) -> Key:
+def choose_key(
+    health: float,
+    rng: random.Random,
+    bright_mode_probability: float = 0.0,
+) -> Key:
     """Pick a mode family from health, then a key from the seeded RNG."""
 
-    if health >= 0.70:
+    if bright_mode_probability > 0.0 and rng.random() < bright_mode_probability:
+        mode = rng.choice(MAJORISH_MODES)
+    elif health >= 0.70:
         mode = "major" if rng.random() < 0.68 else "lydian"
     elif health >= 0.48:
         mode = "dorian" if rng.random() < 0.55 else "mixolydian"
@@ -154,6 +160,7 @@ def build_chord(
     seventh: bool = False,
     ninth: bool = False,
     add9: bool = False,
+    eleventh: bool = False,
     sus4: bool = False,
 ) -> Chord:
     """Stack scale thirds (and optional extensions) from a scale degree."""
@@ -165,10 +172,12 @@ def build_chord(
     else:
         specs.append(("third", degree + 2))
     specs.append(("fifth", degree + 4))
-    if seventh or ninth:
+    if seventh or ninth or eleventh:
         specs.append(("seventh", degree + 6))
     if (ninth or add9) and not _would_be_flat_nine(key, degree):
         specs.append(("ninth", degree + 8))
+    if eleventh:
+        specs.append(("eleventh", degree + 10))
 
     tones: list[ChordTone] = []
     for role, scale_degree in specs:
@@ -193,6 +202,7 @@ def build_chord(
 
     seventh_tone = by_role.get("seventh")
     ninth_tone = by_role.get("ninth")
+    eleventh_tone = by_role.get("eleventh")
     base_suffix = {
         "major": "",
         "minor": "m",
@@ -222,6 +232,8 @@ def build_chord(
             suffix = f"{suffix}9"
     elif add9:
         suffix = f"{suffix}add9"
+    if eleventh_tone:
+        suffix = f"{suffix}11"
 
     root_name = PC_NAMES[(key.tonic_pc + root_abs) % 12]
     return Chord(
