@@ -60,7 +60,9 @@ def _write_anthem_rhythm(instrument, form, section, style, plan, rng) -> None:
         accents = (0.0, 1.0, 2.0, 3.0) if section.name == "theme" else (0.0, 0.5, 1.5, 2.0, 2.5, 3.5)
         for index, beat in enumerate(accents):
             velocity = 53 + int(section.intensity * 34) + rng.randint(-3, 4)
-            duration = 0.30 if beat % 1 else 0.38
+            # Short enough for the intended muted pulse, long enough for an
+            # electric-guitar note to ring between attacks.
+            duration = 0.45 if beat % 1 else 0.78
             _add(instrument, root, bar_beat + beat, duration, velocity, form)
             _add(instrument, fifth, bar_beat + beat, duration, velocity - 5, form)
 
@@ -76,7 +78,7 @@ def _write_cinematic(instrument, form, section, style, plan, rng) -> None:
             if section.name == "resolution" and bar % 2:
                 continue
             velocity = 34 + int(section.intensity * 30) + (index * 4 if swell else 0)
-            duration = 0.85 if swell else 0.55
+            duration = 1.75 if swell else 1.35
             _add(instrument, notes[index % len(notes)], bar_beat + beat, duration, velocity, form)
 
 
@@ -93,7 +95,7 @@ def _write_lofi(instrument, form, section, style, plan, rng) -> None:
         for beat in (0.5, 2.5):
             velocity = 28 + int(section.intensity * 25) + rng.randint(-3, 3)
             for pitch in notes[:3]:
-                _add(instrument, pitch, bar_beat + beat, 0.52, velocity, form)
+                _add(instrument, pitch, bar_beat + beat, 1.0, velocity, form)
 
 
 def _write_lead(instrument, form, section, style, rng, plan) -> None:
@@ -126,7 +128,12 @@ def _write_lead(instrument, form, section, style, rng, plan) -> None:
                 if module.todo_count and event.beat >= 7.0 and phrase_number % 2:
                     continue
                 velocity = 65 + int(section.intensity * 34) + rng.randint(-3, 4)
-                _add(instrument, pitch, phrase_base + event.beat, min(event.duration, phrase_limit - event.beat - 0.04), velocity, form)
+                next_beat = next(
+                    (candidate.beat for candidate in motif if candidate.beat > event.beat),
+                    phrase_limit,
+                )
+                ringing = max(event.duration, min(1.5, (next_beat - event.beat) * 0.91))
+                _add(instrument, pitch, phrase_base + event.beat, min(ringing, phrase_limit - event.beat - 0.04), velocity, form)
             if (plan.motif_treatment == "extend" and phrase_number % 2 == 1
                     and phrase_limit >= 4):
                 pitch = _scale_pitch(form, motif[-1].degree + 1, 69 + section.intensity * 6)

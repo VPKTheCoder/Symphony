@@ -34,7 +34,8 @@ artifact; the audio has light reverb, mastering and a fade.
 
 ## Setup
 
-Requirements: Python 3.11+, FluidSynth CLI, ffmpeg.
+Requirements: Python 3.11+, Git, FluidSynth CLI, ffmpeg. The Python requirements
+include the Tree-sitter runtime and Rust grammar used by Stage 1.
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -82,6 +83,81 @@ python -m symphony.compose --profile profiles/large.json --style lofi --seed 7 -
 ```
 
 Styles: `cinematic`, `lofi`, `anthem`.
+
+## Stage 1: Rust analyzer
+
+The analyzer reads Rust syntax with `tree-sitter` and `tree-sitter-rust`. It
+uses tracked and non-ignored untracked files, honors `.gitignore`, and skips
+`target/`, `vendor/`, `build/`, `build.rs`, and files marked as generated.
+Cargo workspace crates become top-level groups in module names. Small modules
+are folded into their parent or an `other` group so a profile contains at most
+14 modules.
+
+Analyze a local repository and save a profile in the schema accepted by the
+composer:
+
+```powershell
+python -m symphony.analyze D:/code/my-rust-app --out profiles/my-rust-app.json
+```
+
+Pass `--entry <module>` to choose the call-path root. For libraries without a
+`main()`, the analyzer starts at `lib.rs` and follows its module declaration
+order. `--explain` prints each module metric beside its musical mapping.
+
+```powershell
+python -m symphony.analyze D:/code/my-rust-app `
+  --out profiles/my-rust-app.json `
+  --entry app::search `
+  --explain
+```
+
+### Metric derivation
+
+- **LOC:** nonblank code lines; comment-only lines are excluded.
+- **Complexity:** per-function counts of `if`, match arms, loops, `&&`, `||`,
+  and `?`, summed in each module, then combined rank and logarithmic normalized
+  to 0–1 across the repository.
+- **Unsafe:** counts of unsafe blocks, unsafe functions, and unsafe impls.
+  Global `unsafe_ratio` is unsafe constructs divided by unsafe constructs plus
+  function count.
+- **TODO:** TODO/FIXME comments plus `todo!()` and `unimplemented!()` calls.
+- **Dependencies:** internal module references from `crate::`, `super::`,
+  `self::`, and module declarations; incoming module edges become
+  `depended_by_count`.
+- **Coverage:** `coverage_source: "proxy"` labels the default proxy. It compares
+  test functions (`#[test]`, `#[cfg(test)]` modules, and `tests/`) to public
+  functions, clamped to 0–1. This is not execution-based code coverage. Supply
+  `--lcov path/to/lcov.info` to use LCOV line coverage instead; the output then
+  labels `coverage_source` as `lcov`.
+- **Global metrics:** `avg_complexity` averages module complexity ranks;
+  `test_coverage` weights module coverage by public function count; and
+  `unsafe_ratio` uses the count ratio above. They all remain in 0–1.
+
+For example, generate `fd`'s profile with an optional explanation:
+
+```powershell
+python -m symphony.analyze out/.repo-cache/fd --out profiles/fd.json --explain
+```
+
+### Analyze, compose and render in one command
+
+`--repo` accepts a local path or a Git URL. URLs are cloned with
+`git clone --depth 1` into `out/.repo-cache/` and reused on later runs.
+
+```powershell
+python -m symphony.compose `
+  --repo https://github.com/sharkdp/fd `
+  --style anthem `
+  --seed 42 `
+  --out out/fd-anthem `
+  --explain
+```
+
+This writes `out/fd-anthem.profile.json`, the MIDI/WAV/MP3, and
+`out/fd-anthem.timeline.json`. The timeline records each section's start and
+end time, its module mapping, and timestamps for complexity, unsafe, TODO and
+coverage-cadence moments. Every compose run prints a listening-guide table at
+the end. Profile-based composition also writes a timeline and guide.
 
 ## What is implemented
 

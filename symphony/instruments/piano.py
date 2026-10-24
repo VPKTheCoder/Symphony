@@ -49,7 +49,7 @@ def render_piano(
     instrument.channel = 0
     instrument.control_changes.extend(
         [
-            pretty_midi.ControlChange(number=7, value=100, time=0.0),
+            pretty_midi.ControlChange(number=7, value=82, time=0.0),
             pretty_midi.ControlChange(number=10, value=74, time=0.0),
             pretty_midi.ControlChange(number=91, value=32, time=0.0),
         ]

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import random
 import sys
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
@@ -18,9 +19,11 @@ from symphony.instruments.guitar import render_guitar
 from symphony.instruments.piano import render_piano
 from symphony.instruments.violin import render_violin
 from symphony.profile import Profile, ProfileError, load_profile
+from symphony.analyze import analyze_repository, format_explanation, format_summary, resolve_repository, write_profile
 from symphony.render import RenderError, render_track
 from symphony.styles import STYLES, Style, get_style
 from symphony.variation import VariationPlan, sample_variation_plan
+from symphony.timeline import build_timeline, format_listening_guide, write_timeline
 
 MAX_INSTRUMENTS = 5
 
@@ -136,7 +139,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         prog="python -m symphony.compose",
         description="Turn a codebase profile into an instrumental track.",
     )
-    parser.add_argument("--profile", required=True, help="Path to a profile JSON file.")
+    source_group = parser.add_mutually_exclusive_group(required=True)
+    source_group.add_argument("--profile", help="Path to a profile JSON file.")
+    source_group.add_argument("--repo", help="Analyze a local Rust repo path or Git URL before composing.")
     parser.add_argument(
         "--style",
         required=True,
@@ -164,12 +169,34 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--stems", action="store_true",
         help="Also render each instrument to its own WAV file.",
     )
+    parser.add_argument("--entry", help="Analyzer entry module (defaults to main, then lib).")
+    parser.add_argument("--lcov", help="LCOV report for real coverage instead of the test proxy.")
+    parser.add_argument("--explain", action="store_true", help="Explain each module metric's musical mapping.")
     args = parser.parse_args(argv)
 
     try:
-        profile = load_profile(args.profile)
-        style = get_style(args.style)
         out_prefix = _normalize_out_prefix(args.out)
+        analyzed_profile = None
+        if args.repo:
+            repository = resolve_repository(args.repo)
+            analyzed_profile = analyze_repository(
+                repository,
+                name=out_prefix.name,
+                entry=args.entry,
+                lcov=args.lcov,
+            )
+            profile_path = write_profile(
+                analyzed_profile,
+                out_prefix.with_name(out_prefix.name + ".profile.json"),
+            )
+            print(format_summary(analyzed_profile))
+            print(f"  profile: {profile_path}")
+            profile = load_profile(profile_path)
+        else:
+            if args.entry or args.lcov:
+                raise ValueError("--entry and --lcov are only used with --repo.")
+            profile = load_profile(args.profile)
+        style = get_style(args.style)
         if args.variations < 1:
             raise ValueError("--variations must be at least 1.")
         accepted_fingerprints: list[tuple[str, ...]] = []
@@ -189,7 +216,37 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             midi_path = write_midi(composition, prefix.with_suffix(".mid"))
             print(_summary(composition, midi_path))
+            timeline = build_timeline(composition)
+            timeline_path = write_timeline(composition, prefix)
+            print(f"  timeline: {timeline_path}")
+            if args.explain:
+                if analyzed_profile is None:
+                    analyzed_profile = {
+                        "name": profile.name,
+                        "global": {
+                            "total_loc": profile.global_metrics.total_loc,
+                            "unsafe_ratio": profile.global_metrics.unsafe_ratio,
+                            "test_coverage": profile.global_metrics.test_coverage,
+                            "avg_complexity": profile.global_metrics.avg_complexity,
+                        },
+                        "coverage_source": profile.coverage_source or "profile",
+                        "modules": [
+                            {
+                                "name": module.name,
+                                "loc": module.loc,
+                                "complexity": module.complexity,
+                                "unsafe_count": module.unsafe_count,
+                                "depends_on": list(module.depends_on),
+                                "todo_count": module.todo_count,
+                                "test_coverage": module.test_coverage,
+                                "depended_by_count": module.depended_by_count,
+                            }
+                            for module in profile.modules
+                        ],
+                    }
+                print(format_explanation(analyzed_profile))
             if args.no_render:
+                print(format_listening_guide(timeline))
                 continue
 
             wav_path = prefix.with_suffix(".wav")
@@ -201,8 +258,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"  mp3: {mp3_path}")
             if args.stems:
                 print("  stems: " + ", ".join(str(path) for path in render_result.stem_paths))
+            print(format_listening_guide(timeline))
         return 0
-    except (ProfileError, RenderError, ValueError, OSError) as exc:
+    except (ProfileError, RenderError, ValueError, OSError, subprocess.SubprocessError) as exc:
         print(f"symphony: error: {exc}", file=sys.stderr)
         return 2
 

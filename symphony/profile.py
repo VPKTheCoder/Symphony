@@ -43,6 +43,7 @@ class Profile:
     global_metrics: GlobalMetrics
     modules: tuple[ModuleProfile, ...]
     call_path: tuple[str, ...]
+    coverage_source: str | None = None
 
     @property
     def modules_by_name(self) -> dict[str, ModuleProfile]:
@@ -127,7 +128,16 @@ def load_profile(path: str | Path) -> Profile:
         raise ProfileError(f"call_path references unknown modules: {missing}")
 
     name = _as_text(raw.get("name", "untitled"), "name")
-    return Profile(name=name, global_metrics=metrics, modules=tuple(modules), call_path=call_path)
+    coverage_source = raw.get("coverage_source")
+    if coverage_source is not None and not isinstance(coverage_source, str):
+        raise ProfileError("coverage_source must be text when provided.")
+    return Profile(
+        name=name,
+        global_metrics=metrics,
+        modules=tuple(modules),
+        call_path=call_path,
+        coverage_source=coverage_source,
+    )
 
 
 def _clamp(value: float, low: float, high: float) -> float:

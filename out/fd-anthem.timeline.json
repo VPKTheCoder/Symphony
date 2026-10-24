@@ -1,0 +1,336 @@
+{
+  "coverage_source": "proxy",
+  "key": "C mixolydian",
+  "listening_guide": [
+    {
+      "module": "framing",
+      "section": "intro",
+      "time": 0.0,
+      "what_to_listen_for": "listen for the opening texture"
+    },
+    {
+      "module": "fd_find::bin_fd",
+      "section": "theme",
+      "time": 14.769,
+      "what_to_listen_for": "listen for the main melody and module motif; complexity hotspot: rising rhythmic and register intensity, TODO: brief sus4/rest interruption, coverage: open cadence"
+    },
+    {
+      "module": "fd_find::walk",
+      "section": "theme",
+      "time": 22.154,
+      "what_to_listen_for": "listen for the main melody and module motif; complexity hotspot: rising rhythmic and register intensity, coverage: resolved cadence"
+    },
+    {
+      "module": "fd_find::output",
+      "section": "theme",
+      "time": 29.538,
+      "what_to_listen_for": "listen for the main melody and module motif; TODO: brief sus4/rest interruption, coverage: open cadence"
+    },
+    {
+      "module": "fd_find::exec",
+      "section": "theme",
+      "time": 36.923,
+      "what_to_listen_for": "listen for the main melody and module motif; complexity hotspot: rising rhythmic and register intensity, coverage: resolved cadence"
+    },
+    {
+      "module": "fd_find::exec::tests",
+      "section": "development",
+      "time": 50.215,
+      "what_to_listen_for": "listen for the build and changing textures; coverage: resolved cadence"
+    },
+    {
+      "module": "fd_find::exec",
+      "section": "development",
+      "time": 56.123,
+      "what_to_listen_for": "listen for the build and changing textures; complexity hotspot: rising rhythmic and register intensity, coverage: resolved cadence"
+    },
+    {
+      "module": "fd_find::filesystem",
+      "section": "development",
+      "time": 62.031,
+      "what_to_listen_for": "listen for the build and changing textures; coverage: open cadence"
+    },
+    {
+      "module": "fd_find::dir_entry",
+      "section": "development",
+      "time": 67.938,
+      "what_to_listen_for": "listen for the build and changing textures; coverage: open cadence"
+    },
+    {
+      "module": "fd_find::other",
+      "section": "climax",
+      "time": 81.231,
+      "what_to_listen_for": "listen for the full-band lift; complexity hotspot: rising rhythmic and register intensity, unsafe: diminished color and violin tremolo, TODO: brief sus4/rest interruption, coverage: resolved cadence"
+    },
+    {
+      "module": "fd_find::fmt",
+      "section": "climax",
+      "time": 88.615,
+      "what_to_listen_for": "listen for the full-band lift; complexity hotspot: rising rhythmic and register intensity, coverage: resolved cadence"
+    },
+    {
+      "module": "fd_find::cli",
+      "section": "climax",
+      "time": 96.0,
+      "what_to_listen_for": "listen for the full-band lift; coverage: open cadence"
+    },
+    {
+      "module": "fd_find::tests::testenv",
+      "section": "climax",
+      "time": 103.385,
+      "what_to_listen_for": "listen for the full-band lift; coverage: resolved cadence"
+    },
+    {
+      "module": "fd_find::tests::tests",
+      "section": "resolution",
+      "time": 121.846,
+      "what_to_listen_for": "listen for the cadence; TODO: brief sus4/rest interruption, coverage: resolved cadence"
+    },
+    {
+      "module": "fd_find::filter::size::tests",
+      "section": "resolution",
+      "time": 132.923,
+      "what_to_listen_for": "listen for the cadence; coverage: resolved cadence"
+    },
+    {
+      "module": "fd_find::filter::time::tests",
+      "section": "resolution",
+      "time": 144.0,
+      "what_to_listen_for": "listen for the cadence; coverage: resolved cadence"
+    },
+    {
+      "module": "framing",
+      "section": "outro",
+      "time": 155.077,
+      "what_to_listen_for": "listen for the ending and fade"
+    }
+  ],
+  "profile": "fd-anthem",
+  "sections": [
+    {
+      "end_label": "00:07",
+      "end_time": 7.385,
+      "modules": [],
+      "moments": [],
+      "name": "intro",
+      "start_label": "00:00",
+      "start_time": 0.0
+    },
+    {
+      "end_label": "00:44",
+      "end_time": 44.308,
+      "modules": [
+        "fd_find::bin_fd",
+        "fd_find::walk",
+        "fd_find::output",
+        "fd_find::exec"
+      ],
+      "moments": [
+        {
+          "module": "fd_find::bin_fd",
+          "time": 14.769,
+          "type": "complexity_hotspot"
+        },
+        {
+          "module": "fd_find::bin_fd",
+          "time": 14.769,
+          "type": "todo"
+        },
+        {
+          "decision": "open cadence",
+          "module": "fd_find::bin_fd",
+          "time": 14.769,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "fd_find::walk",
+          "time": 22.154,
+          "type": "complexity_hotspot"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "fd_find::walk",
+          "time": 22.154,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "fd_find::output",
+          "time": 29.538,
+          "type": "todo"
+        },
+        {
+          "decision": "open cadence",
+          "module": "fd_find::output",
+          "time": 29.538,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "fd_find::exec",
+          "time": 36.923,
+          "type": "complexity_hotspot"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "fd_find::exec",
+          "time": 36.923,
+          "type": "coverage_cadence"
+        }
+      ],
+      "name": "theme",
+      "start_label": "00:07",
+      "start_time": 7.385
+    },
+    {
+      "end_label": "01:13",
+      "end_time": 73.846,
+      "modules": [
+        "fd_find::exec::tests",
+        "fd_find::exec",
+        "fd_find::filesystem",
+        "fd_find::dir_entry"
+      ],
+      "moments": [
+        {
+          "decision": "resolved cadence",
+          "module": "fd_find::exec::tests",
+          "time": 50.215,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "fd_find::exec",
+          "time": 56.123,
+          "type": "complexity_hotspot"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "fd_find::exec",
+          "time": 56.123,
+          "type": "coverage_cadence"
+        },
+        {
+          "decision": "open cadence",
+          "module": "fd_find::filesystem",
+          "time": 62.031,
+          "type": "coverage_cadence"
+        },
+        {
+          "decision": "open cadence",
+          "module": "fd_find::dir_entry",
+          "time": 67.938,
+          "type": "coverage_cadence"
+        }
+      ],
+      "name": "development",
+      "start_label": "00:44",
+      "start_time": 44.308
+    },
+    {
+      "end_label": "01:50",
+      "end_time": 110.769,
+      "modules": [
+        "fd_find::other",
+        "fd_find::fmt",
+        "fd_find::cli",
+        "fd_find::tests::testenv"
+      ],
+      "moments": [
+        {
+          "module": "fd_find::other",
+          "time": 81.231,
+          "type": "complexity_hotspot"
+        },
+        {
+          "module": "fd_find::other",
+          "time": 81.231,
+          "type": "unsafe"
+        },
+        {
+          "module": "fd_find::other",
+          "time": 81.231,
+          "type": "todo"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "fd_find::other",
+          "time": 81.231,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "fd_find::fmt",
+          "time": 88.615,
+          "type": "complexity_hotspot"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "fd_find::fmt",
+          "time": 88.615,
+          "type": "coverage_cadence"
+        },
+        {
+          "decision": "open cadence",
+          "module": "fd_find::cli",
+          "time": 96.0,
+          "type": "coverage_cadence"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "fd_find::tests::testenv",
+          "time": 103.385,
+          "type": "coverage_cadence"
+        }
+      ],
+      "name": "climax",
+      "start_label": "01:13",
+      "start_time": 73.846
+    },
+    {
+      "end_label": "02:35",
+      "end_time": 155.077,
+      "modules": [
+        "fd_find::tests::tests",
+        "fd_find::filter::size::tests",
+        "fd_find::filter::time::tests"
+      ],
+      "moments": [
+        {
+          "module": "fd_find::tests::tests",
+          "time": 121.846,
+          "type": "todo"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "fd_find::tests::tests",
+          "time": 121.846,
+          "type": "coverage_cadence"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "fd_find::filter::size::tests",
+          "time": 132.923,
+          "type": "coverage_cadence"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "fd_find::filter::time::tests",
+          "time": 144.0,
+          "type": "coverage_cadence"
+        }
+      ],
+      "name": "resolution",
+      "start_label": "01:50",
+      "start_time": 110.769
+    },
+    {
+      "end_label": "02:42",
+      "end_time": 162.462,
+      "modules": [],
+      "moments": [],
+      "name": "outro",
+      "start_label": "02:35",
+      "start_time": 155.077
+    }
+  ],
+  "seed": 42,
+  "style": "anthem",
+  "tempo": 130
+}

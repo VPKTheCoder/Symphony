@@ -1,0 +1,384 @@
+{
+  "coverage_source": "proxy",
+  "key": "C mixolydian",
+  "listening_guide": [
+    {
+      "module": "framing",
+      "section": "intro",
+      "time": 0.0,
+      "what_to_listen_for": "listen for the opening texture"
+    },
+    {
+      "module": "ripgrep::other",
+      "section": "theme",
+      "time": 15.88,
+      "what_to_listen_for": "listen for the main melody and module motif; complexity hotspot: rising rhythmic and register intensity, unsafe: diminished color and violin tremolo, TODO: brief sus4/rest interruption, coverage: resolved cadence"
+    },
+    {
+      "module": "grep_cli::other",
+      "section": "theme",
+      "time": 24.541,
+      "what_to_listen_for": "listen for the main melody and module motif; unsafe: diminished color and violin tremolo, coverage: resolved cadence"
+    },
+    {
+      "module": "ripgrep::flags::defs",
+      "section": "theme",
+      "time": 33.203,
+      "what_to_listen_for": "listen for the main melody and module motif; coverage: resolved cadence"
+    },
+    {
+      "module": "globset::other",
+      "section": "theme",
+      "time": 41.865,
+      "what_to_listen_for": "listen for the main melody and module motif; complexity hotspot: rising rhythmic and register intensity, TODO: brief sus4/rest interruption, coverage: resolved cadence"
+    },
+    {
+      "module": "grep::other",
+      "section": "development",
+      "time": 56.541,
+      "what_to_listen_for": "listen for the build and changing textures; coverage: open cadence"
+    },
+    {
+      "module": "ignore::walk",
+      "section": "development",
+      "time": 62.556,
+      "what_to_listen_for": "listen for the build and changing textures; complexity hotspot: rising rhythmic and register intensity, coverage: resolved cadence"
+    },
+    {
+      "module": "ignore::other",
+      "section": "development",
+      "time": 68.571,
+      "what_to_listen_for": "listen for the build and changing textures; complexity hotspot: rising rhythmic and register intensity, TODO: brief sus4/rest interruption, coverage: resolved cadence"
+    },
+    {
+      "module": "ignore::walk",
+      "section": "development",
+      "time": 74.586,
+      "what_to_listen_for": "listen for the build and changing textures; complexity hotspot: rising rhythmic and register intensity, coverage: resolved cadence"
+    },
+    {
+      "module": "grep_matcher::other",
+      "section": "development",
+      "time": 80.602,
+      "what_to_listen_for": "listen for the build and changing textures; coverage: resolved cadence"
+    },
+    {
+      "module": "grep_pcre2::other",
+      "section": "climax",
+      "time": 93.835,
+      "what_to_listen_for": "listen for the full-band lift; coverage: open cadence"
+    },
+    {
+      "module": "grep_printer::other",
+      "section": "climax",
+      "time": 101.053,
+      "what_to_listen_for": "listen for the full-band lift; complexity hotspot: rising rhythmic and register intensity, coverage: resolved cadence"
+    },
+    {
+      "module": "grep_regex::other",
+      "section": "climax",
+      "time": 108.271,
+      "what_to_listen_for": "listen for the full-band lift; complexity hotspot: rising rhythmic and register intensity, TODO: brief sus4/rest interruption, coverage: resolved cadence"
+    },
+    {
+      "module": "grep_searcher::other",
+      "section": "climax",
+      "time": 115.489,
+      "what_to_listen_for": "listen for the full-band lift; TODO: brief sus4/rest interruption, coverage: resolved cadence"
+    },
+    {
+      "module": "grep_searcher::searcher",
+      "section": "resolution",
+      "time": 129.925,
+      "what_to_listen_for": "listen for the cadence; complexity hotspot: rising rhythmic and register intensity, unsafe: diminished color and violin tremolo, TODO: brief sus4/rest interruption, coverage: resolved cadence"
+    },
+    {
+      "module": "grep_searcher::other",
+      "section": "resolution",
+      "time": 137.143,
+      "what_to_listen_for": "listen for the cadence; TODO: brief sus4/rest interruption, coverage: resolved cadence"
+    },
+    {
+      "module": "grep_printer::standard::tests",
+      "section": "resolution",
+      "time": 144.361,
+      "what_to_listen_for": "listen for the cadence; coverage: resolved cadence"
+    },
+    {
+      "module": "framing",
+      "section": "outro",
+      "time": 151.579,
+      "what_to_listen_for": "listen for the ending and fade"
+    }
+  ],
+  "profile": "ripgrep-anthem",
+  "sections": [
+    {
+      "end_label": "00:07",
+      "end_time": 7.218,
+      "modules": [],
+      "moments": [],
+      "name": "intro",
+      "start_label": "00:00",
+      "start_time": 0.0
+    },
+    {
+      "end_label": "00:50",
+      "end_time": 50.526,
+      "modules": [
+        "ripgrep::other",
+        "grep_cli::other",
+        "ripgrep::flags::defs",
+        "globset::other"
+      ],
+      "moments": [
+        {
+          "module": "ripgrep::other",
+          "time": 15.88,
+          "type": "complexity_hotspot"
+        },
+        {
+          "module": "ripgrep::other",
+          "time": 15.88,
+          "type": "unsafe"
+        },
+        {
+          "module": "ripgrep::other",
+          "time": 15.88,
+          "type": "todo"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "ripgrep::other",
+          "time": 15.88,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "grep_cli::other",
+          "time": 24.541,
+          "type": "unsafe"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "grep_cli::other",
+          "time": 24.541,
+          "type": "coverage_cadence"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "ripgrep::flags::defs",
+          "time": 33.203,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "globset::other",
+          "time": 41.865,
+          "type": "complexity_hotspot"
+        },
+        {
+          "module": "globset::other",
+          "time": 41.865,
+          "type": "todo"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "globset::other",
+          "time": 41.865,
+          "type": "coverage_cadence"
+        }
+      ],
+      "name": "theme",
+      "start_label": "00:07",
+      "start_time": 7.218
+    },
+    {
+      "end_label": "01:26",
+      "end_time": 86.617,
+      "modules": [
+        "grep::other",
+        "ignore::walk",
+        "ignore::other",
+        "ignore::walk",
+        "grep_matcher::other"
+      ],
+      "moments": [
+        {
+          "decision": "open cadence",
+          "module": "grep::other",
+          "time": 56.541,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "ignore::walk",
+          "time": 62.556,
+          "type": "complexity_hotspot"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "ignore::walk",
+          "time": 62.556,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "ignore::other",
+          "time": 68.571,
+          "type": "complexity_hotspot"
+        },
+        {
+          "module": "ignore::other",
+          "time": 68.571,
+          "type": "todo"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "ignore::other",
+          "time": 68.571,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "ignore::walk",
+          "time": 74.586,
+          "type": "complexity_hotspot"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "ignore::walk",
+          "time": 74.586,
+          "type": "coverage_cadence"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "grep_matcher::other",
+          "time": 80.602,
+          "type": "coverage_cadence"
+        }
+      ],
+      "name": "development",
+      "start_label": "00:50",
+      "start_time": 50.526
+    },
+    {
+      "end_label": "02:02",
+      "end_time": 122.707,
+      "modules": [
+        "grep_pcre2::other",
+        "grep_printer::other",
+        "grep_regex::other",
+        "grep_searcher::other"
+      ],
+      "moments": [
+        {
+          "decision": "open cadence",
+          "module": "grep_pcre2::other",
+          "time": 93.835,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "grep_printer::other",
+          "time": 101.053,
+          "type": "complexity_hotspot"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "grep_printer::other",
+          "time": 101.053,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "grep_regex::other",
+          "time": 108.271,
+          "type": "complexity_hotspot"
+        },
+        {
+          "module": "grep_regex::other",
+          "time": 108.271,
+          "type": "todo"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "grep_regex::other",
+          "time": 108.271,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "grep_searcher::other",
+          "time": 115.489,
+          "type": "todo"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "grep_searcher::other",
+          "time": 115.489,
+          "type": "coverage_cadence"
+        }
+      ],
+      "name": "climax",
+      "start_label": "01:26",
+      "start_time": 86.617
+    },
+    {
+      "end_label": "02:31",
+      "end_time": 151.579,
+      "modules": [
+        "grep_searcher::searcher",
+        "grep_searcher::other",
+        "grep_printer::standard::tests"
+      ],
+      "moments": [
+        {
+          "module": "grep_searcher::searcher",
+          "time": 129.925,
+          "type": "complexity_hotspot"
+        },
+        {
+          "module": "grep_searcher::searcher",
+          "time": 129.925,
+          "type": "unsafe"
+        },
+        {
+          "module": "grep_searcher::searcher",
+          "time": 129.925,
+          "type": "todo"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "grep_searcher::searcher",
+          "time": 129.925,
+          "type": "coverage_cadence"
+        },
+        {
+          "module": "grep_searcher::other",
+          "time": 137.143,
+          "type": "todo"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "grep_searcher::other",
+          "time": 137.143,
+          "type": "coverage_cadence"
+        },
+        {
+          "decision": "resolved cadence",
+          "module": "grep_printer::standard::tests",
+          "time": 144.361,
+          "type": "coverage_cadence"
+        }
+      ],
+      "name": "resolution",
+      "start_label": "02:02",
+      "start_time": 122.707
+    },
+    {
+      "end_label": "02:38",
+      "end_time": 158.797,
+      "modules": [],
+      "moments": [],
+      "name": "outro",
+      "start_label": "02:31",
+      "start_time": 151.579
+    }
+  ],
+  "seed": 42,
+  "style": "anthem",
+  "tempo": 133
+}

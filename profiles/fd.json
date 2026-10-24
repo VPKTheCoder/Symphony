@@ -1,0 +1,199 @@
+{
+  "call_path": [
+    "fd_find::bin_fd",
+    "fd_find::walk",
+    "fd_find::output",
+    "fd_find::exec",
+    "fd_find::exec::tests",
+    "fd_find::exec",
+    "fd_find::filesystem",
+    "fd_find::dir_entry",
+    "fd_find::other",
+    "fd_find::fmt",
+    "fd_find::cli",
+    "fd_find::tests::testenv",
+    "fd_find::tests::tests",
+    "fd_find::filter::size::tests",
+    "fd_find::filter::time::tests"
+  ],
+  "coverage_source": "proxy",
+  "global": {
+    "avg_complexity": 0.516084,
+    "test_coverage": 0.655172,
+    "total_loc": 6803,
+    "unsafe_ratio": 0.002674
+  },
+  "modules": [
+    {
+      "complexity": 0.458132,
+      "depended_by_count": 1,
+      "depends_on": [
+        "fd_find::other",
+        "fd_find::filesystem"
+      ],
+      "loc": 648,
+      "name": "fd_find::cli",
+      "test_coverage": 0.0,
+      "todo_count": 0,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 0.397648,
+      "depended_by_count": 3,
+      "depends_on": [],
+      "loc": 156,
+      "name": "fd_find::dir_entry",
+      "test_coverage": 0.4,
+      "todo_count": 0,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 0.785806,
+      "depended_by_count": 3,
+      "depends_on": [
+        "fd_find::exec::tests"
+      ],
+      "loc": 355,
+      "name": "fd_find::exec",
+      "test_coverage": 1.0,
+      "todo_count": 0,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 0.341528,
+      "depended_by_count": 4,
+      "depends_on": [
+        "fd_find::dir_entry"
+      ],
+      "loc": 124,
+      "name": "fd_find::filesystem",
+      "test_coverage": 0.125,
+      "todo_count": 0,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 1.0,
+      "depended_by_count": 4,
+      "depends_on": [
+        "fd_find::fmt",
+        "fd_find::dir_entry",
+        "fd_find::filesystem"
+      ],
+      "loc": 865,
+      "name": "fd_find::other",
+      "test_coverage": 1.0,
+      "todo_count": 1,
+      "unsafe_count": 1
+    },
+    {
+      "complexity": 0.717426,
+      "depended_by_count": 2,
+      "depends_on": [],
+      "loc": 238,
+      "name": "fd_find::fmt",
+      "test_coverage": 1.0,
+      "todo_count": 0,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 0.852134,
+      "depended_by_count": 0,
+      "depends_on": [
+        "fd_find::walk",
+        "fd_find::filesystem",
+        "fd_find::other",
+        "fd_find::cli",
+        "fd_find::dir_entry",
+        "fd_find::exec",
+        "fd_find::fmt",
+        "fd_find::output"
+      ],
+      "loc": 436,
+      "name": "fd_find::bin_fd",
+      "test_coverage": 0.0,
+      "todo_count": 1,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 0.57568,
+      "depended_by_count": 2,
+      "depends_on": [],
+      "loc": 162,
+      "name": "fd_find::output",
+      "test_coverage": 0.0,
+      "todo_count": 5,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 0.935928,
+      "depended_by_count": 1,
+      "depends_on": [
+        "fd_find::output",
+        "fd_find::exec",
+        "fd_find::filesystem"
+      ],
+      "loc": 594,
+      "name": "fd_find::walk",
+      "test_coverage": 1.0,
+      "todo_count": 0,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 0.650449,
+      "depended_by_count": 0,
+      "depends_on": [],
+      "loc": 265,
+      "name": "fd_find::tests::testenv",
+      "test_coverage": 1.0,
+      "todo_count": 0,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 0.510442,
+      "depended_by_count": 0,
+      "depends_on": [],
+      "loc": 2524,
+      "name": "fd_find::tests::tests",
+      "test_coverage": 1.0,
+      "todo_count": 6,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 0.0,
+      "depended_by_count": 1,
+      "depends_on": [
+        "fd_find::exec"
+      ],
+      "loc": 182,
+      "name": "fd_find::exec::tests",
+      "test_coverage": 1.0,
+      "todo_count": 0,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 0.0,
+      "depended_by_count": 0,
+      "depends_on": [
+        "fd_find::other"
+      ],
+      "loc": 130,
+      "name": "fd_find::filter::size::tests",
+      "test_coverage": 1.0,
+      "todo_count": 0,
+      "unsafe_count": 0
+    },
+    {
+      "complexity": 0.0,
+      "depended_by_count": 0,
+      "depends_on": [
+        "fd_find::other"
+      ],
+      "loc": 124,
+      "name": "fd_find::filter::time::tests",
+      "test_coverage": 1.0,
+      "todo_count": 0,
+      "unsafe_count": 0
+    }
+  ],
+  "name": "fd"
+}

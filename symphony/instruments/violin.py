@@ -29,7 +29,7 @@ def render_violin(
     instrument.channel = 3
     instrument.control_changes.extend(
         [
-            pretty_midi.ControlChange(number=7, value=92, time=0.0),
+            pretty_midi.ControlChange(number=7, value=118, time=0.0),
             pretty_midi.ControlChange(number=10, value=76, time=0.0),
             pretty_midi.ControlChange(number=91, value=42, time=0.0),
         ]
@@ -69,7 +69,15 @@ def render_violin(
                     absolute_beat = phrase_base + event.beat
                     if current_module.todo_count and event.beat >= 7.0 and phrase_number % 2 == 1:
                         continue
-                    duration = min(event.duration, phrase_limit - event.beat - 0.05)
+                    next_beat = next(
+                        (candidate.beat for candidate in motif if candidate.beat > event.beat),
+                        phrase_limit,
+                    )
+                    legato_duration = max(
+                        event.duration,
+                        min(1.92, (next_beat - event.beat) * 0.93),
+                    )
+                    duration = min(legato_duration, phrase_limit - event.beat - 0.04)
                     if duration <= 0.06:
                         continue
                     velocity = _velocity(style, section.intensity, event.beat, rng)
