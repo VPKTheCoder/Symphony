@@ -86,3 +86,21 @@
   `SEC_E_NO_CREDENTIALS`. The cached fd and ripgrep trees remain analyzable.
   bat has no cached checkout, and Symphony contains no Rust crate, so those
   requested live comparisons are deferred and recorded as an environment limit.
+
+## Step 7 — tests and validation
+
+- Expanded unit coverage to assert signature prose/moments appear in at least three
+  sections. The suite now passes **15/15**, including byte-identical MIDI,
+  variation-pinned profile structure, and instrument register lanes.
+- Added scale quantization after rendering for any generated notes outside the
+  active scale. The sprawling signature's climax is validated in its transposed
+  scale, which fixed the earlier false positives in the quality validator.
+- `tools/validate_quality.py`: **240/240 compositions passed** (scale, registers,
+  max internal silence <=1.5 beats, 2–4 minute duration).
+- `tools/validate_silence.py`: **all 24 checked compositions passed**.
+- Asset-free run: hid the local SoundFont and tools/fluidsynth directory, unset
+  Symphony asset environment variables, and restricted PATH to Git plus Windows
+  system tools (no ffmpeg or FluidSynth); **15/15 unit tests passed** and the
+  CI-equivalent cinematic `--no-render` composition produced MIDI and timeline.
+  The initial PATH experiment also hid Git and failed six analyzer setup hooks;
+  restoring Git alone resolved those harness errors.

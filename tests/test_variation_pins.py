@@ -11,6 +11,7 @@ from pathlib import Path
 from symphony.compose import build_composition
 from symphony.profile import load_profile
 from symphony.styles import STYLES
+from symphony.timeline import build_timeline
 from symphony.variation import fingerprint_distance, mode_family_for, sample_variation_plan
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -122,6 +123,18 @@ class VariationPinTests(unittest.TestCase):
         self.assertEqual(first.form.tempo, second.form.tempo)
         self.assertEqual(first.variation_plan.hook_id, second.variation_plan.hook_id)
         self.assertNotEqual(first.variation_plan.fingerprint(), second.variation_plan.fingerprint())
+
+    def test_signature_is_named_in_three_or_more_sections(self) -> None:
+        profile = load_profile(ROOT / "profiles" / "fd.json")
+        timeline = build_timeline(build_composition(profile, STYLES["anthem"], 0))
+        signature_sections = [
+            section for section in timeline["sections"]
+            if any(moment["type"] == "signature" for moment in section["moments"])
+        ]
+        self.assertGreaterEqual(len(signature_sections), 3)
+        self.assertTrue(all(timeline["signature"] in item["what_to_listen_for"]
+                            for item in timeline["listening_guide"]
+                            if item["section"] in {section["name"] for section in signature_sections}))
 
     def test_rhythm_section_respects_registers_and_drum_channel(self) -> None:
         profile = load_profile(ROOT / "profiles" / "large.json")

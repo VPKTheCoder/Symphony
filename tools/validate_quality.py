@@ -38,12 +38,27 @@ def main() -> int:
                     (form.key.tonic_pc + interval) % 12
                     for interval in MODES[form.key.mode]
                 }
-                out_of_scale = [
-                    note.pitch
-                    for instrument in instruments if not instrument.is_drum
-                    for note in instrument.notes
-                    if note.pitch % 12 not in allowed_pitch_classes
-                ]
+                climax = next(section for section in form.sections if section.name == "climax")
+                beats_per_bar = form.meter_beats_per_bar
+                climax_start = climax.start_bar * beats_per_bar * form.seconds_per_beat
+                climax_end = climax.end_bar * beats_per_bar * form.seconds_per_beat
+                climax_scale = (
+                    {(pitch + 2) % 12 for pitch in allowed_pitch_classes}
+                    if composition.variation_plan.signature_id == "sprawl"
+                    else allowed_pitch_classes
+                )
+                out_of_scale = []
+                for instrument in instruments:
+                    if instrument.is_drum:
+                        continue
+                    for note in instrument.notes:
+                        active_scale = (
+                            climax_scale
+                            if climax_start <= note.start < climax_end
+                            else allowed_pitch_classes
+                        )
+                        if note.pitch % 12 not in active_scale:
+                            out_of_scale.append(note.pitch)
                 lane_violations = []
                 for instrument in instruments:
                     if instrument.is_drum:

@@ -25,6 +25,7 @@ from symphony.styles import STYLES, Style, get_style
 from symphony.variation import VariationPlan, sample_variation_plan
 from symphony.timeline import build_timeline, format_listening_guide, write_timeline
 from symphony.identity import profile_fingerprint, variation_seed
+from symphony.theory import MODES
 
 MAX_INSTRUMENTS = 5
 
@@ -100,6 +101,7 @@ def build_composition(
                     if shifted < low:
                         shifted += 12
                     note.pitch = shifted
+    _quantize_generated_notes(midi, form, plan)
     _apply_meter(midi, plan.meter, form.tempo)
     if len(midi.instruments) > MAX_INSTRUMENTS:
         raise ValueError(f"Composition exceeds the {MAX_INSTRUMENTS}-instrument limit.")
@@ -144,6 +146,29 @@ def _apply_meter(midi: pretty_midi.PrettyMIDI, meter: tuple[int, int], tempo: in
     midi.time_signature_changes = [
         pretty_midi.TimeSignature(numerator, denominator, 0.0)
     ]
+
+
+def _quantize_generated_notes(midi: pretty_midi.PrettyMIDI, form: Form, plan: VariationPlan) -> None:
+    """Keep every generated pitched note in the active section's curated scale."""
+    base_scale = {(form.key.tonic_pc + interval) % 12 for interval in MODES[form.key.mode]}
+    lanes = {"Piano": (49, 108), "Bass": (24, 48), "Violin": (55, 103), "Guitar": (40, 76)}
+    bar_seconds = form.seconds_per_beat * 4.0
+    climax = next(section for section in form.sections if section.name == "climax")
+    climax_start = climax.start_bar * bar_seconds
+    climax_end = climax.end_bar * bar_seconds
+    for instrument in midi.instruments:
+        if instrument.is_drum:
+            continue
+        low, high = lanes[instrument.name]
+        for note in instrument.notes:
+            scale = base_scale
+            if plan.signature_id == "sprawl" and climax_start <= note.start < climax_end:
+                scale = {(pitch + 2) % 12 for pitch in base_scale}
+            if note.pitch % 12 not in scale:
+                note.pitch = min(
+                    (candidate for candidate in range(low, high + 1) if candidate % 12 in scale),
+                    key=lambda candidate: (abs(candidate - note.pitch), candidate),
+                )
 
 
 def _format_duration(seconds: float) -> str:
