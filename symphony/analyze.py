@@ -411,6 +411,8 @@ def _collect_rust_features(root: Node, source: bytes) -> dict[str, int]:
         "macro_rules_count": 0,
         "proc_macro_use_count": 0,
         "macro_invocation_count": 0,
+        "result_type_count": 0,
+        "iterator_call_count": 0,
         "async_fn_count": 0,
         "try_operator_count": 0,
         "unwrap_call_count": 0,
@@ -450,6 +452,11 @@ def _collect_rust_features(root: Node, source: bytes) -> dict[str, int]:
             value = source[node.start_byte : node.end_byte]
             if re.search(rb"\bproc_macro(?:_attribute|_derive)?\b", value):
                 counts["proc_macro_use_count"] += 1
+        elif node_type == "generic_type":
+            type_node = node.child_by_field_name("type")
+            type_name = source[type_node.start_byte : type_node.end_byte] if type_node else b""
+            if type_name == b"Result":
+                counts["result_type_count"] += 1
         elif node_type == "function_item":
             counts["function_count"] += 1
             modifiers = node.child_by_field_name("function_modifiers")
@@ -468,6 +475,8 @@ def _collect_rust_features(root: Node, source: bytes) -> dict[str, int]:
             if function and function.type == "field_expression":
                 field = function.child_by_field_name("field")
                 method = source[field.start_byte : field.end_byte].decode("utf-8", "replace") if field else ""
+                if method in _ITERATOR_METHODS:
+                    counts["iterator_call_count"] += 1
                 if method in {"unwrap", "expect", "clone"}:
                     counts[{"unwrap": "unwrap_call_count", "expect": "expect_call_count", "clone": "clone_call_count"}[method]] += 1
             counts["max_iterator_chain_length"] = max(
@@ -495,14 +504,18 @@ def _rust_feature_profile(counts: dict[str, int], modules: dict[str, _Module], d
             "generics_per_100_functions": round(100 * counts["generic_parameter_count"] / functions, 6),
             "lifetimes_per_100_functions": round(100 * counts["lifetime_count"] / functions, 6),
             "macros_per_kloc": round(1000 * (counts["macro_rules_count"] + counts["macro_invocation_count"] + counts["proc_macro_use_count"]) / loc, 6),
+            "result_types_per_100_functions": round(100 * counts["result_type_count"] / functions, 6),
             "async_fn_ratio": round(counts["async_fn_count"] / functions, 6),
             "try_operators_per_100_functions": round(100 * counts["try_operator_count"] / functions, 6),
             "unwrap_expect_panic_per_100_functions": round(100 * (counts["unwrap_call_count"] + counts["expect_call_count"] + counts["panic_call_count"]) / functions, 6),
             "closures_per_100_functions": round(100 * counts["closure_count"] / functions, 6),
+            "iterator_calls_per_100_functions": round(100 * counts["iterator_call_count"] / functions, 6),
             "clone_calls_per_100_functions": round(100 * counts["clone_call_count"] / functions, 6),
             "pub_api_ratio": round(counts["pub_api_count"] / max(1, counts["item_count"]), 6),
             "max_module_depth": max((max(0, len(module.name.split("::")) - 1) for module in modules.values()), default=0),
             "dependency_hub_concentration": round(top_incoming / max(1, all_edges), 6),
+            "todo_count": sum(module.todo_count for module in modules.values()),
+            "module_count": len(modules),
         }
     )
     return result

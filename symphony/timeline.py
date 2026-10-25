@@ -28,6 +28,15 @@ def build_timeline(composition) -> dict:
             module = module_lookup[name]
             moment_time = start + (end - start) * ((index + 1) / (len(modules) + 1))
             details = []
+            if section.name in {"intro", "theme", "development", "climax", "outro"}:
+                signature_text = composition.variation_plan.signature_label
+                details.append(signature_text)
+                moments.append({
+                    "type": "signature",
+                    "description": signature_text,
+                    "module": name,
+                    "time": round(moment_time, 3),
+                })
             if module.complexity >= complexity_threshold:
                 details.append("complexity hotspot: rising rhythmic and register intensity")
                 moments.append({"type": "complexity_hotspot", "module": name, "time": round(moment_time, 3)})
@@ -60,14 +69,27 @@ def build_timeline(composition) -> dict:
                 "what_to_listen_for": focus + "; " + ", ".join(details),
             })
         if not modules:
+            signature_text = composition.variation_plan.signature_label
+            focus = {
+                "intro": "listen for the opening texture",
+                "outro": "listen for the ending and fade",
+            }.get(section.name, "listen for the transition")
+            if section.name in {"intro", "theme", "development", "climax", "outro"}:
+                moments.append({
+                    "type": "signature",
+                    "description": signature_text,
+                    "module": "framing",
+                    "time": round(start, 3),
+                })
             guide.append({
                 "time": round(start, 3),
                 "module": "framing",
                 "section": section.name,
-                "what_to_listen_for": {
-                    "intro": "listen for the opening texture",
-                    "outro": "listen for the ending and fade",
-                }.get(section.name, "listen for the transition"),
+                "what_to_listen_for": focus + (
+                    f"; {signature_text}"
+                    if section.name in {"intro", "theme", "development", "climax", "outro"}
+                    else ""
+                ),
             })
         sections.append({
             "name": section.name,
@@ -90,6 +112,7 @@ def build_timeline(composition) -> dict:
             "id": composition.variation_plan.hook_id,
             "contour": list(composition.variation_plan.hook_contour),
         },
+        "signature": composition.variation_plan.signature_label,
         "coverage_source": profile.coverage_source,
         "sections": sections,
         "listening_guide": guide,

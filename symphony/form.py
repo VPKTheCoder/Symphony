@@ -86,6 +86,8 @@ def build_form(profile: Profile, style: Style, plan: VariationPlan) -> Form:
     tempo_dna = int(fingerprint[:8], 16) / 0xFFFFFFFF
     tempo_dna = (tempo_dna + 0.137) % 1.0
     tempo = style.tempo_for(profile.global_metrics.avg_complexity, tempo_dna)
+    if plan.signature_id == "sprawl":
+        tempo = max(style.tempo_range[0], int(round(tempo * 0.86)))
 
     meter_beats = plan.meter[0] * 4.0 / plan.meter[1]
     seconds_per_bar = meter_beats * 60.0 / tempo

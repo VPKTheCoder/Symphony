@@ -14,6 +14,7 @@ from symphony.profile import Profile
 from symphony.styles import ArrangementMatrix, BuildShape, Style
 from symphony.theory import MAJORISH_MODES, Key
 from symphony.identity import profile_fingerprint
+from symphony.signatures import choose_signature
 
 SECTION_NAMES = ("intro", "theme", "development", "climax", "resolution", "outro")
 HOOK_CONTOURS = (
@@ -46,6 +47,10 @@ class VariationPlan:
     repo_fingerprint: str = ""
     hook_id: str = ""
     hook_contour: tuple[int, ...] = ()
+    signature_id: str = ""
+    signature_name: str = ""
+    signature_reason: str = ""
+    signature_score: float = 0.0
 
     def progression_for(self, section: str) -> tuple[int, ...]:
         return next(values for name, _, values in self.progressions if name == section)
@@ -75,6 +80,7 @@ class VariationPlan:
             f"mode:{self.key.mode}",
             f"meter:{self.meter[0]}/{self.meter[1]}",
             f"hook:{self.hook_id}",
+            f"signature:{self.signature_id}",
             f"m:{self.arrangement_matrix.name}",
             f"bp:{self.bass_pattern}",
             f"dg:{self.drum_groove}",
@@ -93,12 +99,17 @@ class VariationPlan:
         return (
             f"key={self.key.label} (family={self.mode_family}, tonic_pc={self.tonic_pc}); "
             f"meter={self.meter[0]}/{self.meter[1]}; repo_dna={self.repo_fingerprint[:12]}; "
+            f"{self.signature_label}; "
             f"progressions[{progressions}]; patterns[{patterns}]; "
             f"voicing={self.voicing_style}; build={self.build_shape.name}; "
             f"matrix={self.arrangement_matrix.name}; bass={self.bass_pattern}; "
             f"drums={self.drum_groove}; motif={self.motif_treatment}; "
             f"guitar_program={self.guitar_program}"
         )
+
+    @property
+    def signature_label(self) -> str:
+        return f"Signature: {self.signature_name}, because this repo is {self.signature_reason}"
 
 
 def mode_family_for(profile: Profile, style: Style) -> str:
@@ -118,7 +129,8 @@ def sample_variation_plan(
 ) -> VariationPlan:
     """Sample all arrangement decisions from the composition's seeded RNG."""
 
-    family = mode_family_for(profile, style)
+    signature = choose_signature(profile)
+    family = "majorish" if signature.id == "clean" else mode_family_for(profile, style)
     family_pool = (style.mode_families or {}).get(family)
     if not family_pool:
         raise ValueError(f"Style {style.name!r} has no modes for family {family!r}.")
@@ -154,6 +166,8 @@ def sample_variation_plan(
     hook_id = hashlib.sha256(
         (identity + "|" + "|".join(module.name for module in top_modules) + "|hook").encode("utf-8")
     ).hexdigest()[:12]
+    if signature.id == "complexity" and (7, 8) in style.meters:
+        meter = (7, 8)
     key = Key(tonic_pc=tonic_pc, mode=mode)
 
     progression_pool = (style.progression_pools or {}).get(mode, ())
@@ -175,6 +189,8 @@ def sample_variation_plan(
     )
     voicing = rng.choice(style.voicing_styles)
     shape = rng.choice(style.build_shapes)
+    if signature.id == "sprawl":
+        shape = next((item for item in style.build_shapes if item.name == "gradual"), shape)
     ornaments = tuple(
         (section, rng.choice(style.ornament_pool)) for section in SECTION_NAMES
     )
@@ -220,6 +236,10 @@ def sample_variation_plan(
         repo_fingerprint=identity,
         hook_id=hook_id,
         hook_contour=hook_contour,
+        signature_id=signature.id,
+        signature_name=signature.name,
+        signature_reason=signature.reason,
+        signature_score=signature.score,
     )
 
 

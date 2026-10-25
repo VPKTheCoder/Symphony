@@ -53,3 +53,19 @@
 - Current cached output summary (anthem / cinematic): fd = Ab major, 7/8 /
   Db mixolydian, 4/4; ripgrep = B lydian, 4/4 / G major, 3/4. Their four
   variation plans have different progression and rhythm fingerprints.
+
+## Step 5 — signature features
+
+- Added deterministic, normalized feature-extreme selection for exactly one primary
+  signature per profile. The selected motif gesture is rendered in all five parts
+  through intro, theme, development, climax, and outro; signature prose is included
+  in timeline JSON and the listening guide.
+- Added audible gestures for unsafe code (in-scale tritone alternation/tremolo),
+  complexity (7/8 where curated, accent hats), Result/error handling (split
+  call-and-response), traits/generics (staggered canon), async (offset layers),
+  iterator use (scalar runs), TODOs (suspensions/open ending), hub concentration
+  (bass pedal), sprawling size (slower gradual build and climax transposition), and
+  clean profiles (major-family selection and high tonic cadence).
+- Expanded every style's curated meter pool to include 7/8.
+- Tests: **14 passed**. One pre-existing DNA meter assertion was updated to include
+  the newly supported 7/8 option.

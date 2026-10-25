@@ -82,6 +82,24 @@ def build_composition(
     midi.instruments.append(render_drums(form, style, profile, rng, plan))
     midi.instruments.append(render_violin(form, profile, style, rng, plan))
     midi.instruments.append(render_guitar(form, profile, style, rng, plan))
+    if plan.signature_id == "sprawl":
+        climax = next(section for section in form.sections if section.name == "climax")
+        bar_seconds = form.seconds_per_beat * 4.0
+        start_time = climax.start_bar * bar_seconds
+        end_time = climax.end_bar * bar_seconds
+        lanes = {"Piano": (49, 108), "Bass": (24, 48), "Violin": (55, 103), "Guitar": (40, 76)}
+        for instrument in midi.instruments:
+            if instrument.is_drum:
+                continue
+            low, high = lanes[instrument.name]
+            for note in instrument.notes:
+                if start_time <= note.start < end_time:
+                    shifted = note.pitch + 2
+                    if shifted > high:
+                        shifted -= 12
+                    if shifted < low:
+                        shifted += 12
+                    note.pitch = shifted
     _apply_meter(midi, plan.meter, form.tempo)
     if len(midi.instruments) > MAX_INSTRUMENTS:
         raise ValueError(f"Composition exceeds the {MAX_INSTRUMENTS}-instrument limit.")

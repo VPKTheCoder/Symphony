@@ -111,7 +111,7 @@ class VariationPinTests(unittest.TestCase):
             roots.add(plan.tonic_pc)
             meters.add(plan.meter)
         self.assertEqual(roots, set(range(12)))
-        self.assertTrue(meters.issubset({(4, 4), (6, 8), (3, 4)}))
+        self.assertTrue(meters.issubset({(4, 4), (6, 8), (3, 4), (7, 8)}))
 
     def test_identity_pins_musical_dna_across_variation_indices(self) -> None:
         profile = load_profile(ROOT / "profiles" / "small.json")

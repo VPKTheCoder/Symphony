@@ -325,7 +325,7 @@ CINEMATIC = Style(
     arrangement_matrices=CINEMATIC_MATRICES,
     drum_grooves=DRUM_GROOVES["cinematic"],
     guitar_programs=(25, 27),
-    meters=((4, 4), (6, 8), (3, 4)),
+    meters=((4, 4), (6, 8), (3, 4), (7, 8)),
 )
 
 LOFI = Style(
@@ -361,7 +361,7 @@ LOFI = Style(
     arrangement_matrices=LOFI_MATRICES,
     drum_grooves=DRUM_GROOVES["lofi"],
     guitar_programs=(24, 27),
-    meters=((4, 4), (6, 8), (3, 4)),
+    meters=((4, 4), (6, 8), (3, 4), (7, 8)),
 )
 
 ANTHEM = Style(
