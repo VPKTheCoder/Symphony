@@ -162,7 +162,9 @@ def sample_variation_plan(
     hook_digest = hashlib.sha256(
         (identity + "|" + "|".join(module.name for module in top_modules)).encode("utf-8")
     ).digest()
-    hook_contour = HOOK_CONTOURS[hook_digest[0] % len(HOOK_CONTOURS)]
+    # Eight anchored scale degrees give each repository a much larger melodic
+    # identity space than a small hand-picked contour table.
+    hook_contour = (0, *(1 + value % 6 for value in hook_digest[:6]), 0)
     hook_id = hashlib.sha256(
         (identity + "|" + "|".join(module.name for module in top_modules) + "|hook").encode("utf-8")
     ).hexdigest()[:12]

@@ -69,3 +69,20 @@
 - Expanded every style's curated meter pool to include 7/8.
 - Tests: **14 passed**. One pre-existing DNA meter assertion was updated to include
   the newly supported 7/8 option.
+
+## Step 6 — contrast gate
+
+- Added `python -m symphony.contrast <repo...> --style anthem|cinematic`. It
+  analyzes and composes each repository with variation index 0, then compares
+  key, mode, tempo, meter, progression IDs, rhythm IDs, signature, and hook
+  contour. Pairs below 4 of 8 differing dimensions fail with exit status 1.
+- Tuning iteration 1 (fd/ripgrep): both styles scored 7/8; the shared hook
+  contour was the only melodic identity overlap. Iteration 2 derived the full
+  anchored eight-note contour from the repository fingerprint: both styles
+  scored 8/8, including distinct hook contours. The final threshold remains 4/8.
+- Final cached fd/ripgrep runs passed: anthem 8/8; cinematic 8/8.
+- Attempted the requested fresh GitHub clone for the four-repository sweep, but
+  this environment's Git transport failed with Schannel
+  `SEC_E_NO_CREDENTIALS`. The cached fd and ripgrep trees remain analyzable.
+  bat has no cached checkout, and Symphony contains no Rust crate, so those
+  requested live comparisons are deferred and recorded as an environment limit.
