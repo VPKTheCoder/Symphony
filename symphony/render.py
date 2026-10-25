@@ -124,8 +124,8 @@ def render_track(
         str(wav),
         "-codec:a",
         "libmp3lame",
-        "-q:a",
-        "2",
+        "-b:a",
+        "160k",
         str(mp3),
     ]
     _run(mp3_command, "ffmpeg (MP3 encode)")

@@ -4,14 +4,20 @@ Turn a software codebase profile into an instrumental track.
 
 ## Listen
 
-Full-band examples rendered from the current best mixes (Checkpoint B):
+Repository-specific examples (160 kbps MP3, each under 5 MB):
 
-- [Cinematic](examples/cinematic.mp3)
-- [Lo-fi](examples/lofi.mp3)
-- [Anthem](examples/anthem.mp3)
+- [fd — anthem: grand slow build and climax key change](examples/fd_anthem.mp3)
+- [fd — cinematic: grand slow build and climax key change](examples/fd_cinematic.mp3)
+- [ripgrep — anthem: heroic resolved cadences and soaring lead](examples/ripgrep_anthem.mp3)
+- [ripgrep — cinematic: heroic resolved cadences and soaring lead](examples/ripgrep_cinematic.mp3)
+- [bat — anthem: heroic resolved cadences and soaring lead](examples/bat_anthem.mp3)
+- [bat — cinematic: heroic resolved cadences and soaring lead](examples/bat_cinematic.mp3)
+- [Cinematic profile demo](examples/cinematic.mp3) · [Lo-fi profile demo](examples/lofi.mp3) · [Anthem profile demo](examples/anthem.mp3)
 
-Each MP3 is under 5 MB. These are demos; repo-specific musical identity is
-being developed in the next phase.
+Each song has its own fingerprint-derived key and hook. The signature is
+introduced, developed, brought back at the climax, and recalled in the outro.
+See the timeline JSON emitted beside each render for timestamps and a listening
+guide.
 
 **Stage 2 lineup:** acoustic grand piano, bass, GM drum kit (MIDI channel 10),
 violin lead, and guitar. All five tracks are implemented. The composer is
@@ -56,6 +62,13 @@ The same command in bash:
 
 ```bash
 python -m symphony.compose --profile profiles/small.json --style cinematic --seed 42 --out out/track
+```
+
+Analyze a Rust repository, compose it, and render it (same form works in bash
+and PowerShell):
+
+```bash
+python -m symphony.compose --repo https://github.com/sharkdp/fd --style anthem --out out/fd-anthem
 ```
 
 Produces:
@@ -111,8 +124,9 @@ python -m symphony.analyze D:/code/my-rust-app `
 
 - **LOC:** nonblank code lines; comment-only lines are excluded.
 - **Complexity:** per-function counts of `if`, match arms, loops, `&&`, `||`,
-  and `?`, summed in each module, then combined rank and logarithmic normalized
-  to 0–1 across the repository.
+  and `?`. Global complexity uses an absolute sigmoid calibration of raw
+  branch load per function; module complexity is rank/log normalized only
+  within the repository for local emphasis.
 - **Unsafe:** counts of unsafe blocks, unsafe functions, and unsafe impls.
   Global `unsafe_ratio` is unsafe constructs divided by unsafe constructs plus
   function count.
@@ -125,9 +139,14 @@ python -m symphony.analyze D:/code/my-rust-app `
   functions, clamped to 0–1. This is not execution-based code coverage. Supply
   `--lcov path/to/lcov.info` to use LCOV line coverage instead; the output then
   labels `coverage_source` as `lcov`.
-- **Global metrics:** `avg_complexity` averages module complexity ranks;
-  `test_coverage` weights module coverage by public function count; and
-  `unsafe_ratio` uses the count ratio above. They all remain in 0–1.
+- **Global metrics:** `avg_complexity` is the absolute calibrated signal;
+  `test_coverage` weights the proxy (or LCOV, when provided) by public function
+  count; and `unsafe_ratio` uses the count ratio above. All remain in 0–1.
+- **Rust-specific optional features:** `rust_features` includes counts/ratios
+  for traits, impls, generics, lifetimes, macros/proc-macro use, async functions,
+  `?`, unwrap/expect/panic, closures, iterator chains/calls, clones, public API,
+  module depth, and dependency-hub concentration. Older profile files remain
+  valid without this field.
 
 For example, generate `fd`'s profile with an optional explanation:
 
@@ -169,14 +188,18 @@ the end. Profile-based composition also writes a timeline and guide.
 
 ### Key, tempo and harmony
 
-- Health from coverage, unsafe ratio and average complexity selects a mode
-  family: major/lydian, dorian/mixolydian, or minor/phrygian.
-- `avg_complexity` maps inside the style tempo range (cinematic 70–104 BPM,
-  lo-fi 83–102 BPM, anthem 120–140 BPM).
+- A SHA-256 musical DNA fingerprint uses the crate/repository name and sorted
+  module structure. It selects any of the twelve chromatic roots and nudges the
+  metric-driven mode, tempo, and curated meter. Supported meters include 4/4,
+  6/8, 3/4, and 7/8; tempo ranges are wider and vary by style.
+- `--seed` is the variation index (default `0`). The base seed comes from the
+  repository fingerprint and style, so the same repo/style/index reproduces a
+  byte-identical MIDI file.
 - Per-mode functional progression pools (for example I–V–vi–IV in major and
   i–VI–III–VII in minor).
-- Chords are built by stacking scale tones, with style-dependent 7ths, 9ths and
-  added 9ths. Every note stays inside the selected scale.
+- Chords are built from curated scale tones, with style-dependent 7ths, 9ths
+  and added 9ths. Pitched notes are checked against the active scale; the
+  sprawling signature deliberately transposes the climax up a whole step.
 - Upper voices are chosen with smooth voice leading and a style-specific
   register target.
 
@@ -211,6 +234,49 @@ the end. Profile-based composition also writes a timeline and guide.
   parallel melody doubling outside deliberate lead passages.
 - All five tracks carry CC7 volume, CC10 pan, and CC91 reverb. Piano and violin
   sit right of center, guitar left of center, and bass/drums center.
+
+### Musical DNA, hook, and repository signature
+
+- A four-bar, eight-note diatonic hook is derived from the fingerprint plus the
+  three largest module names. Violin states it while piano/guitar double or
+  answer; bass and drums share its rhythm. The hook appears in intro, theme,
+  development, climax, and outro, with inversion and variation in development.
+- Exactly one primary signature is selected from the strongest normalized
+  repository feature. Its treatment is parameterized inside the same composer:
+
+| Repository signal | Audible signature |
+|---|---|
+| Unsafe-heavy | In-scale tritone riff, violin tremolo, dark pedal |
+| High complexity | Odd-meter accents and busy hats |
+| Result/`?`-heavy | Call-and-response, stumble, then recovery |
+| Trait/generic-heavy | Staggered canon imitating the hook |
+| Async-heavy | Syncopated interlocking layers |
+| Iterator-heavy | Flowing scalar runs and rising sequence |
+| TODO-heavy | Suspensions and a hanging phrase ending |
+| One dominant dependency hub | Pedal-tone bass drone |
+| Large and sprawling | Slow gradual build and climax key change |
+| Clean and well-tested | Bright major family, resolved cadence, soaring lead |
+
+The exact signature and its reason are repeated in at least three timeline
+sections and in the printed listening guide. Signatures used in the demo set:
+fd uses the grand slow build/key change; ripgrep and bat use heroic resolved
+cadences and soaring leads.
+
+### Contrast gate
+
+Run the default variation for a set of local Rust repositories or Git URLs and
+fail when any pair differs in fewer than four identity dimensions (key, mode,
+tempo, meter, progressions, rhythm, signature, hook contour):
+
+```powershell
+python -m symphony.contrast D:/code/fd D:/code/ripgrep D:/code/bat --style anthem
+python -m symphony.contrast D:/code/fd D:/code/ripgrep D:/code/bat --style cinematic
+```
+
+For listening, start with the intro hook, listen for the named signature as the
+piece develops, compare its return at the climax, then check whether the outro
+recalls the hook. Each rendered `*.timeline.json` has section timestamps and
+these listening prompts.
 
 ### Rendering
 
@@ -273,8 +339,9 @@ python tools/validate_silence.py
 
 | Input | Musical decision |
 |---|---|
-| `global.test_coverage`, `unsafe_ratio`, `avg_complexity` | Health → mode family |
-| `avg_complexity` | Tempo within the style range |
+| repository fingerprint | Root key, hook contour, stable DNA nudge for mode/meter/tempo |
+| `global.test_coverage`, `unsafe_ratio`, `avg_complexity` | Health and metric-weighted mode selection |
+| absolute global `avg_complexity` | Tempo and complexity signature selection |
 | `call_path` order | Section order and module grouping |
 | module `loc` | Section length (compressed with a square-root weight) |
 | module `complexity` | Section intensity shading, busier drums, higher violin register, denser guitar rhythm |
@@ -283,6 +350,8 @@ python tools/validate_silence.py
 | `test_coverage` | Open vs. resolved cadence |
 | `todo_count` | Brief rest and sus4 suspension in the rhythm section |
 | repeated module in `call_path` | Returning deterministic leitmotif |
+| optional `rust_features` ratios/counts | Select exactly one primary repository signature |
+| `coverage_source: "proxy"` | Test-count estimate, not execution coverage; `--lcov` supplies real line coverage |
 
 ## Code map
 

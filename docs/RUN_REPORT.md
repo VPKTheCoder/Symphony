@@ -81,11 +81,12 @@
   anchored eight-note contour from the repository fingerprint: both styles
   scored 8/8, including distinct hook contours. The final threshold remains 4/8.
 - Final cached fd/ripgrep runs passed: anthem 8/8; cinematic 8/8.
-- Attempted the requested fresh GitHub clone for the four-repository sweep, but
-  this environment's Git transport failed with Schannel
-  `SEC_E_NO_CREDENTIALS`. The cached fd and ripgrep trees remain analyzable.
-  bat has no cached checkout, and Symphony contains no Rust crate, so those
-  requested live comparisons are deferred and recorded as an environment limit.
+- The initial Git clone used Windows Schannel and failed with
+  `SEC_E_NO_CREDENTIALS`. Retrying with Git's OpenSSL TLS backend succeeded;
+  bat was cloned and all requested Rust repositories became analyzable. The
+  local Symphony project has no Rust sources and correctly fails analysis as
+  non-applicable.
+- Step 6 sweep results are finalized below after bat became available.
 
 ## Step 7 — tests and validation
 
@@ -104,3 +105,32 @@
   CI-equivalent cinematic `--no-render` composition produced MIDI and timeline.
   The initial PATH experiment also hid Git and failed six analyzer setup hooks;
   restoring Git alone resolved those harness errors.
+
+## Step 8 — renders and documentation
+
+- Rendered all six requested repo/style combinations using GeneralUser GS,
+  FluidSynth, and ffmpeg. MP3 encoding is fixed at 160 kbps; output sizes range
+  from 3.32 to 3.72 MB. MIDI, WAV, and timeline JSON remain in ignored `out/`.
+- Updated README Listen links, DNA/signature explanations, contrast commands,
+  listening guidance, metrics, and proxy coverage caveat.
+- Final default-variation metadata:
+
+| Repo | Style | Key / mode | Tempo | Meter | Signature |
+|---|---|---|---:|---:|---|
+| fd | anthem | Ab major | 108 BPM | 7/8 | Grand slow build and climax key change — large/sprawling |
+| fd | cinematic | Db mixolydian | 70 BPM | 7/8 | Grand slow build and climax key change — large/sprawling |
+| ripgrep | anthem | B lydian | 121 BPM | 4/4 | Heroic resolved cadences and soaring lead — clean/well-tested |
+| ripgrep | cinematic | G major | 77 BPM | 4/4 | Heroic resolved cadences and soaring lead — clean/well-tested |
+| bat | anthem | B dorian | 122 BPM | 7/8 | Heroic resolved cadences and soaring lead — clean/well-tested |
+| bat | cinematic | Eb major | 79 BPM | 4/4 | Heroic resolved cadences and soaring lead — clean/well-tested |
+
+- Final contrast-gate pairwise matrix (distance / 8; minimum 4):
+
+| | fd | ripgrep | bat |
+|---|---:|---:|---:|
+| fd | — | 8 anthem / 8 cinematic | 7 anthem / 8 cinematic |
+| ripgrep | 8 anthem / 8 cinematic | — | 6 anthem / 4 cinematic |
+| bat | 7 anthem / 8 cinematic | 6 anthem / 4 cinematic | — |
+
+- All three pairs passed both styles. All six signature motifs have distinct
+  interval contours across repositories; hook returns in five sections.
