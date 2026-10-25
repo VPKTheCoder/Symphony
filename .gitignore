@@ -1,5 +1,11 @@
 # Generated renders and sketches
 out/
+*.wav
+stems/
+soundfonts/*.sf2
+tools/fluidsynth/
+out/.repo-cache/
+**/.repo-cache/
 
 # Python
 __pycache__/

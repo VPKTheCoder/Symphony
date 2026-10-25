@@ -160,13 +160,22 @@ def _safe_stem_name(name: str, index: int) -> str:
 
 def _find_soundfont(explicit: str | Path | None) -> Path:
     environment = os.environ.get("SYMPHONY_SOUNDFONT")
+    tools_soundfonts = REPO_ROOT / "tools" / "soundfonts"
+    path_soundfonts = [
+        Path(directory) / "GeneralUser-GS.sf2"
+        for directory in os.environ.get("PATH", "").split(os.pathsep)
+        if directory
+    ]
     candidates = [
         Path(explicit) if explicit else None,
         Path(environment) if environment else None,
+        REPO_ROOT / "tools" / "GeneralUser-GS.sf2",
+        *(sorted(tools_soundfonts.glob("*.sf2")) if tools_soundfonts.is_dir() else []),
         REPO_ROOT / "soundfonts" / "GeneralUser-GS.sf2",
         REPO_ROOT / "soundfonts" / "GeneralUser GS v1.471.sf2",
     ]
     candidates.extend(sorted((REPO_ROOT / "soundfonts").glob("*.sf2")))
+    candidates.extend(path_soundfonts)
     for candidate in candidates:
         if candidate is not None and candidate.is_file():
             return candidate.resolve()
@@ -178,24 +187,18 @@ def _find_soundfont(explicit: str | Path | None) -> Path:
 
 def _find_fluidsynth(explicit: str | Path | None) -> str:
     environment = os.environ.get("SYMPHONY_FLUIDSYNTH")
+    local = sorted(
+        path
+        for pattern in ("fluidsynth", "fluidsynth.exe")
+        for path in (REPO_ROOT / "tools").glob(f"**/{pattern}")
+        if path.is_file()
+    )
     candidates = [
         str(explicit) if explicit else None,
         environment,
+        *(str(path) for path in local),
         shutil.which("fluidsynth"),
     ]
-    local = sorted(
-        (REPO_ROOT / "tools" / "fluidsynth").glob("**/bin/fluidsynth.exe")
-    )
-    candidates.extend(str(path) for path in local)
-    candidates.extend(
-        filter(
-            None,
-            [
-                shutil.which("fluidsynth"),
-                r"C:\Program Files\FluidSynth\bin\fluidsynth.exe",
-            ],
-        )
-    )
     for candidate in candidates:
         if candidate and Path(candidate).is_file():
             return str(Path(candidate).resolve())
