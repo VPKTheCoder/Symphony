@@ -376,6 +376,137 @@ def _normalize_complexities(raw: dict[str, int]) -> dict[str, float]:
     }
 
 
+_ITERATOR_METHODS = {
+    "all", "any", "by_ref", "chain", "cloned", "collect", "copied",
+    "enumerate", "filter", "filter_map", "find", "flat_map", "flatten",
+    "fold", "for_each", "inspect", "into_iter", "iter", "iter_mut", "map",
+    "max", "min", "peekable", "reduce", "rev", "skip", "take", "zip",
+}
+
+
+def _iterator_chain_length(node: Node, source: bytes) -> int:
+    """Count consecutive iterator adaptor/terminal calls on one receiver."""
+
+    if node.type != "call_expression":
+        return max((_iterator_chain_length(child, source) for child in node.children), default=0)
+    function = node.child_by_field_name("function")
+    if function is not None and function.type == "generic_function":
+        function = function.child_by_field_name("function")
+    if function is None or function.type != "field_expression":
+        return max((_iterator_chain_length(child, source) for child in node.children), default=0)
+    field = function.child_by_field_name("field")
+    receiver = function.child_by_field_name("value")
+    name = source[field.start_byte : field.end_byte].decode("utf-8", "replace") if field else ""
+    preceding = _iterator_chain_length(receiver, source) if receiver else 0
+    return preceding + 1 if name in _ITERATOR_METHODS else preceding
+
+
+def _collect_rust_features(root: Node, source: bytes) -> dict[str, int]:
+    counts = {
+        "trait_count": 0,
+        "impl_count": 0,
+        "generic_parameter_count": 0,
+        "lifetime_count": 0,
+        "macro_rules_count": 0,
+        "proc_macro_use_count": 0,
+        "macro_invocation_count": 0,
+        "async_fn_count": 0,
+        "try_operator_count": 0,
+        "unwrap_call_count": 0,
+        "expect_call_count": 0,
+        "panic_call_count": 0,
+        "closure_count": 0,
+        "max_iterator_chain_length": 0,
+        "clone_call_count": 0,
+        "pub_api_count": 0,
+        "function_count": 0,
+        "item_count": 0,
+        "total_loc": 0,
+    }
+    public_items = {
+        "function_item", "struct_item", "enum_item", "union_item", "trait_item",
+        "type_item", "const_item", "static_item", "mod_item",
+    }
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        node_type = node.type
+        if node_type in {"trait_item", "impl_item"}:
+            counts["trait_count" if node_type == "trait_item" else "impl_count"] += 1
+        elif node_type in {"type_parameter", "const_parameter", "lifetime_parameter"}:
+            counts["generic_parameter_count"] += 1
+        elif node_type == "lifetime":
+            counts["lifetime_count"] += 1
+        elif node_type == "macro_definition":
+            counts["macro_rules_count"] += 1
+        elif node_type == "macro_invocation":
+            counts["macro_invocation_count"] += 1
+            macro = node.child_by_field_name("macro")
+            macro_name = source[macro.start_byte : macro.end_byte] if macro else b""
+            if macro_name == b"panic":
+                counts["panic_call_count"] += 1
+        elif node_type == "attribute_item":
+            value = source[node.start_byte : node.end_byte]
+            if re.search(rb"\bproc_macro(?:_attribute|_derive)?\b", value):
+                counts["proc_macro_use_count"] += 1
+        elif node_type == "function_item":
+            counts["function_count"] += 1
+            modifiers = node.child_by_field_name("function_modifiers")
+            # Grammar versions differ in whether modifiers are addressable by field.
+            if (modifiers and b"async" in source[modifiers.start_byte : modifiers.end_byte]) or any(
+                child.type == "function_modifiers" and b"async" in source[child.start_byte : child.end_byte]
+                for child in node.children
+            ):
+                counts["async_fn_count"] += 1
+        elif node_type == "try_expression":
+            counts["try_operator_count"] += 1
+        elif node_type == "closure_expression":
+            counts["closure_count"] += 1
+        elif node_type == "call_expression":
+            function = node.child_by_field_name("function")
+            if function and function.type == "field_expression":
+                field = function.child_by_field_name("field")
+                method = source[field.start_byte : field.end_byte].decode("utf-8", "replace") if field else ""
+                if method in {"unwrap", "expect", "clone"}:
+                    counts[{"unwrap": "unwrap_call_count", "expect": "expect_call_count", "clone": "clone_call_count"}[method]] += 1
+            counts["max_iterator_chain_length"] = max(
+                counts["max_iterator_chain_length"], _iterator_chain_length(node, source)
+            )
+        if node_type in public_items:
+            counts["item_count"] += 1
+            if _visible(node, source):
+                counts["pub_api_count"] += 1
+        stack.extend(reversed(node.children))
+    counts["total_loc"] = len(source.splitlines())
+    return counts
+
+
+def _rust_feature_profile(counts: dict[str, int], modules: dict[str, _Module], depended_by: dict[str, int]) -> dict[str, float | int]:
+    functions = max(1, counts["function_count"])
+    loc = max(1, counts["total_loc"])
+    all_edges = sum(depended_by.values())
+    top_incoming = max(depended_by.values(), default=0)
+    result: dict[str, float | int] = dict(counts)
+    result.update(
+        {
+            "traits_per_100_functions": round(100 * counts["trait_count"] / functions, 6),
+            "impls_per_100_functions": round(100 * counts["impl_count"] / functions, 6),
+            "generics_per_100_functions": round(100 * counts["generic_parameter_count"] / functions, 6),
+            "lifetimes_per_100_functions": round(100 * counts["lifetime_count"] / functions, 6),
+            "macros_per_kloc": round(1000 * (counts["macro_rules_count"] + counts["macro_invocation_count"] + counts["proc_macro_use_count"]) / loc, 6),
+            "async_fn_ratio": round(counts["async_fn_count"] / functions, 6),
+            "try_operators_per_100_functions": round(100 * counts["try_operator_count"] / functions, 6),
+            "unwrap_expect_panic_per_100_functions": round(100 * (counts["unwrap_call_count"] + counts["expect_call_count"] + counts["panic_call_count"]) / functions, 6),
+            "closures_per_100_functions": round(100 * counts["closure_count"] / functions, 6),
+            "clone_calls_per_100_functions": round(100 * counts["clone_call_count"] / functions, 6),
+            "pub_api_ratio": round(counts["pub_api_count"] / max(1, counts["item_count"]), 6),
+            "max_module_depth": max((max(0, len(module.name.split("::")) - 1) for module in modules.values()), default=0),
+            "dependency_hub_concentration": round(top_incoming / max(1, all_edges), 6),
+        }
+    )
+    return result
+
+
 def _resolve_reference(token: str, current: str, known: set[str]) -> str | None:
     segments = token.split("::")
     if not segments:
@@ -477,6 +608,7 @@ def analyze_repository(
     file_records: list[_RustFile] = []
     file_to_modules: dict[str, set[str]] = defaultdict(set)
     modules: dict[str, _Module] = {}
+    rust_feature_counts: dict[str, int] = defaultdict(int)
     declaration_order = 0
     for path in paths:
         crate_match = next(
@@ -513,6 +645,12 @@ def analyze_repository(
         tree = parser.parse(source)
         if tree is None:
             continue
+        file_features = _collect_rust_features(tree.root_node, source)
+        for feature, value in file_features.items():
+            if feature == "max_iterator_chain_length":
+                rust_feature_counts[feature] = max(rust_feature_counts[feature], value)
+            else:
+                rust_feature_counts[feature] += value
         modules[record.module].dependency_files.add(record.path.as_posix())
 
         def ensure_module(module_name: str, crate: str) -> _Module:
@@ -737,7 +875,12 @@ def analyze_repository(
     total_unsafe = sum(item["unsafe_count"] for item in module_profiles)
     total_functions = sum(modules[item["name"]].function_count for item in module_profiles)
     unsafe_ratio = total_unsafe / max(1, total_unsafe + total_functions)
-    avg_complexity = sum(item["complexity"] for item in module_profiles) / len(module_profiles)
+    raw_complexity_total = sum(modules[item["name"]].raw_complexity for item in module_profiles)
+    complexity_per_function = raw_complexity_total / max(1, total_functions)
+    # A sigmoid of absolute branch complexity per function is comparable across
+    # repositories. Module-level values above remain locally normalized for shading.
+    calibrated = (complexity_per_function - 2.0) / 2.0
+    avg_complexity = 1.0 / (1.0 + math.exp(-max(-60.0, min(60.0, calibrated))))
     coverage_weight = sum(modules[item["name"]].public_function_count for item in module_profiles)
     if coverage_weight:
         test_coverage = sum(
@@ -811,6 +954,8 @@ def analyze_repository(
             break
         dfs(item["name"])
 
+    rust_feature_counts["total_loc"] = total_loc
+    rust_features = _rust_feature_profile(rust_feature_counts, modules, depended_by)
     result = {
         "name": name or root.name or "rust-project",
         "global": {
@@ -819,6 +964,7 @@ def analyze_repository(
             "test_coverage": round(test_coverage, 6),
             "avg_complexity": round(avg_complexity, 6),
         },
+        "rust_features": rust_features,
         "modules": module_profiles,
         "call_path": call_path,
         "coverage_source": "lcov" if lcov else "proxy",

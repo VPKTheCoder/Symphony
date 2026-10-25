@@ -89,6 +89,58 @@ class AnalyzerTests(unittest.TestCase):
         engine = next(module for module in result["modules"] if module["name"] == "fixture::engine")
         self.assertAlmostEqual(engine["test_coverage"], 2 / 3, places=6)
 
+    def test_rust_features_and_absolute_complexity_calibration(self) -> None:
+        features = self.root / "src" / "features.rs"
+        features.write_text(
+            "pub trait Runner<'a, T> {}\n"
+            "impl<'a, T> Runner<'a, T> for Vec<T> {}\n"
+            "#[proc_macro_attribute] pub fn marker(a: TokenStream, b: TokenStream) -> TokenStream { b }\n"
+            "pub async fn run<'b, T>(x: &'b T) -> Result<(), ()> {\n"
+            "  let f = |v| v; let _ = vec![x].iter().map(|v| v.clone()).collect::<Vec<_>>();\n"
+            "  let _ = Some(f(x)).unwrap().clone(); let _ = Err::<(), ()>(())?;\n"
+            "  panic!(\"intentional fixture\"); Ok(())\n"
+            "}\n"
+            "macro_rules! local_macro { () => {} }\n",
+            encoding="utf-8",
+        )
+        result = analyze_repository(self.root, name="feature_fixture")
+        features = result["rust_features"]
+        self.assertGreaterEqual(features["trait_count"], 1)
+        self.assertGreaterEqual(features["impl_count"], 1)
+        self.assertGreaterEqual(features["generic_parameter_count"], 3)
+        self.assertGreaterEqual(features["lifetime_count"], 2)
+        self.assertGreaterEqual(features["macro_rules_count"], 1)
+        self.assertGreaterEqual(features["proc_macro_use_count"], 1)
+        self.assertGreaterEqual(features["async_fn_count"], 1)
+        self.assertGreaterEqual(features["try_operator_count"], 1)
+        self.assertGreaterEqual(features["unwrap_call_count"], 1)
+        self.assertGreaterEqual(features["panic_call_count"], 1)
+        self.assertGreaterEqual(features["closure_count"], 1)
+        self.assertGreaterEqual(features["max_iterator_chain_length"], 3)
+        self.assertGreaterEqual(features["clone_call_count"], 1)
+        self.assertGreaterEqual(features["pub_api_count"], 2)
+        self.assertEqual(result["coverage_source"], "proxy")
+
+    def test_global_complexity_uses_absolute_signal(self) -> None:
+        simple = self.root / "simple"
+        complex_repo = self.root / "complex"
+        for root in (simple, complex_repo):
+            (root / "src").mkdir(parents=True)
+            (root / "Cargo.toml").write_text(
+                '[package]\nname="calibration"\nversion="0.1.0"\n', encoding="utf-8"
+            )
+        (simple / "src/lib.rs").write_text("pub fn work() {}\n", encoding="utf-8")
+        (complex_repo / "src/lib.rs").write_text(
+            "pub fn work(x: bool) { if x && !x { for i in 0..8 { match i { 0 => {}, 1 => {}, _ => {} } } } }\n",
+            encoding="utf-8",
+        )
+        simple_profile = analyze_repository(simple, name="simple")
+        complex_profile = analyze_repository(complex_repo, name="complex")
+        self.assertLess(
+            simple_profile["global"]["avg_complexity"],
+            complex_profile["global"]["avg_complexity"],
+        )
+
     def test_second_fixture_counts_match_arms_and_library_order(self) -> None:
         second = self.root / "library-fixture"
         (second / "src").mkdir(parents=True)

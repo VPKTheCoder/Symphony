@@ -8,7 +8,7 @@ small, typed boundary.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +44,7 @@ class Profile:
     modules: tuple[ModuleProfile, ...]
     call_path: tuple[str, ...]
     coverage_source: str | None = None
+    rust_features: dict[str, float | int] = field(default_factory=dict)
 
     @property
     def modules_by_name(self) -> dict[str, ModuleProfile]:
@@ -131,12 +132,21 @@ def load_profile(path: str | Path) -> Profile:
     coverage_source = raw.get("coverage_source")
     if coverage_source is not None and not isinstance(coverage_source, str):
         raise ProfileError("coverage_source must be text when provided.")
+    raw_features = raw.get("rust_features", {})
+    if not isinstance(raw_features, dict) or any(
+        not isinstance(key, str)
+        or isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        for key, value in raw_features.items()
+    ):
+        raise ProfileError("rust_features must be an object of numeric values when provided.")
     return Profile(
         name=name,
         global_metrics=metrics,
         modules=tuple(modules),
         call_path=call_path,
         coverage_source=coverage_source,
+        rust_features=raw_features,
     )
 
 
