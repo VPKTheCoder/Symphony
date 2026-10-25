@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import unittest
 import tempfile
+from dataclasses import replace
+import random
 from pathlib import Path
 
 from symphony.compose import build_composition
 from symphony.profile import load_profile
 from symphony.styles import STYLES
-from symphony.variation import fingerprint_distance, mode_family_for
+from symphony.variation import fingerprint_distance, mode_family_for, sample_variation_plan
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -98,6 +100,28 @@ class VariationPinTests(unittest.TestCase):
             first.midi.write(str(left))
             second.midi.write(str(right))
             self.assertEqual(left.read_bytes(), right.read_bytes())
+
+    def test_repo_dna_covers_twelve_roots_and_curated_meters(self) -> None:
+        profile = load_profile(ROOT / "profiles" / "small.json")
+        roots = set()
+        meters = set()
+        for index in range(48):
+            candidate = replace(profile, name=f"dna-fixture-{index}")
+            plan = sample_variation_plan(candidate, STYLES["cinematic"], random.Random(0))
+            roots.add(plan.tonic_pc)
+            meters.add(plan.meter)
+        self.assertEqual(roots, set(range(12)))
+        self.assertTrue(meters.issubset({(4, 4), (6, 8), (3, 4)}))
+
+    def test_identity_pins_musical_dna_across_variation_indices(self) -> None:
+        profile = load_profile(ROOT / "profiles" / "small.json")
+        first = build_composition(profile, STYLES["cinematic"], 0)
+        second = build_composition(profile, STYLES["cinematic"], 1)
+        self.assertEqual(first.form.key, second.form.key)
+        self.assertEqual(first.form.meter, second.form.meter)
+        self.assertEqual(first.form.tempo, second.form.tempo)
+        self.assertEqual(first.variation_plan.hook_id, second.variation_plan.hook_id)
+        self.assertNotEqual(first.variation_plan.fingerprint(), second.variation_plan.fingerprint())
 
     def test_rhythm_section_respects_registers_and_drum_channel(self) -> None:
         profile = load_profile(ROOT / "profiles" / "large.json")

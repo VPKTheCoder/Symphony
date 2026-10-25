@@ -16,6 +16,7 @@ import pretty_midi
 from symphony.form import Form, SectionPlan
 from symphony.styles import PianoPattern, Style
 from symphony.variation import VariationPlan
+from symphony.instruments.repo_hook import add_repo_hook
 from symphony.theory import (
     Chord,
     build_chord,
@@ -141,6 +142,8 @@ def render_piano(
                     form=form, style=style, rng=rng,
                 )
 
+    for section in form.sections:
+        add_repo_hook(instrument, form, section, plan, "piano")
     end_time = form.total_bars * form.beats_per_bar * form.seconds_per_beat
     instrument.control_changes.append(
         pretty_midi.ControlChange(number=64, value=0, time=end_time + 0.2)

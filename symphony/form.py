@@ -6,6 +6,7 @@ import math
 from dataclasses import dataclass
 
 from symphony.profile import ModuleProfile, Profile
+from symphony.identity import profile_fingerprint
 from symphony.styles import Style
 from symphony.theory import Key
 from symphony.variation import VariationPlan
@@ -53,10 +54,17 @@ class Form:
     target_seconds: float
     health: float
     open_cadence: bool
+    meter: tuple[int, int] = (4, 4)
 
     @property
     def beats_per_bar(self) -> int:
+        """The four-quarter-beat construction grid used by instrument patterns."""
         return 4
+
+    @property
+    def meter_beats_per_bar(self) -> float:
+        numerator, denominator = self.meter
+        return numerator * 4.0 / denominator
 
     @property
     def seconds_per_beat(self) -> float:
@@ -66,7 +74,7 @@ class Form:
     def estimated_seconds(self) -> float:
         return (
             self.total_bars
-            * self.beats_per_bar
+            * self.meter_beats_per_bar
             * self.seconds_per_beat
         )
 
@@ -74,12 +82,16 @@ class Form:
 def build_form(profile: Profile, style: Style, plan: VariationPlan) -> Form:
     key = plan.key
     # Tempo and form are pinned to the profile, never sampled per arrangement.
-    tempo = style.tempo_for(profile.global_metrics.avg_complexity, 0.5)
+    fingerprint = profile_fingerprint(profile)
+    tempo_dna = int(fingerprint[:8], 16) / 0xFFFFFFFF
+    tempo_dna = (tempo_dna + 0.137) % 1.0
+    tempo = style.tempo_for(profile.global_metrics.avg_complexity, tempo_dna)
 
-    seconds_per_bar = 4.0 * 60.0 / tempo
+    meter_beats = plan.meter[0] * 4.0 / plan.meter[1]
+    seconds_per_bar = meter_beats * 60.0 / tempo
     raw_bars = style.target_seconds / seconds_per_bar
     total_bars = int(round(raw_bars / 4.0) * 4)
-    total_bars = max(40, min(88, total_bars))
+    total_bars = max(40, min(128, total_bars))
 
     modules = profile.modules_by_name
     path = [modules[name] for name in profile.call_path]
@@ -154,6 +166,7 @@ def build_form(profile: Profile, style: Style, plan: VariationPlan) -> Form:
         target_seconds=style.target_seconds,
         health=profile.health,
         open_cadence=open_cadence,
+        meter=plan.meter,
     )
 
 

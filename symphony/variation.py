@@ -7,13 +7,21 @@ once here and then shared by form and instrument renderers.
 from __future__ import annotations
 
 import random
+import hashlib
 from dataclasses import dataclass
 
 from symphony.profile import Profile
 from symphony.styles import ArrangementMatrix, BuildShape, Style
-from symphony.theory import COMMON_ROOTS, Key
+from symphony.theory import MAJORISH_MODES, Key
+from symphony.identity import profile_fingerprint
 
 SECTION_NAMES = ("intro", "theme", "development", "climax", "resolution", "outro")
+HOOK_CONTOURS = (
+    (0, 2, 4, 3, 1, 3, 5, 4),
+    (0, 3, 2, 5, 4, 1, 3, 0),
+    (0, 1, 4, 2, 5, 3, 2, 0),
+    (0, 4, 3, 1, 2, 5, 4, 0),
+)
 
 
 @dataclass(frozen=True)
@@ -34,6 +42,10 @@ class VariationPlan:
     drum_groove: str | None = None
     motif_treatment: str | None = None
     guitar_program: int = 27
+    meter: tuple[int, int] = (4, 4)
+    repo_fingerprint: str = ""
+    hook_id: str = ""
+    hook_contour: tuple[int, ...] = ()
 
     def progression_for(self, section: str) -> tuple[int, ...]:
         return next(values for name, _, values in self.progressions if name == section)
@@ -60,6 +72,9 @@ class VariationPlan:
             f"v:{self.voicing_style}",
             f"b:{self.build_shape.name}",
             f"t:{self.tonic_pc}",
+            f"mode:{self.key.mode}",
+            f"meter:{self.meter[0]}/{self.meter[1]}",
+            f"hook:{self.hook_id}",
             f"m:{self.arrangement_matrix.name}",
             f"bp:{self.bass_pattern}",
             f"dg:{self.drum_groove}",
@@ -77,6 +92,7 @@ class VariationPlan:
         )
         return (
             f"key={self.key.label} (family={self.mode_family}, tonic_pc={self.tonic_pc}); "
+            f"meter={self.meter[0]}/{self.meter[1]}; repo_dna={self.repo_fingerprint[:12]}; "
             f"progressions[{progressions}]; patterns[{patterns}]; "
             f"voicing={self.voicing_style}; build={self.build_shape.name}; "
             f"matrix={self.arrangement_matrix.name}; bass={self.bass_pattern}; "
@@ -106,8 +122,38 @@ def sample_variation_plan(
     family_pool = (style.mode_families or {}).get(family)
     if not family_pool:
         raise ValueError(f"Style {style.name!r} has no modes for family {family!r}.")
-    mode = rng.choice(family_pool)
-    tonic_pc = rng.choice(COMMON_ROOTS)
+    identity = profile_fingerprint(profile)
+    base = hashlib.sha256(f"{identity}:{style.name}".encode("utf-8")).digest()
+    dna_rng = random.Random(int.from_bytes(base[:8], "big"))
+    tonic_pc = int.from_bytes(base[8:12], "big") % 12
+    health = profile.health
+    weights = []
+    for candidate in family_pool:
+        if candidate == "major":
+            weight = 0.20 + 1.45 * health
+        elif candidate == "lydian":
+            weight = 0.15 + 0.90 * health
+        elif candidate == "mixolydian":
+            weight = 0.48 + 0.32 * health
+        elif candidate == "dorian":
+            weight = 0.35 + 0.45 * (1.0 - health)
+        elif candidate == "minor":
+            weight = 0.10 + 1.00 * (1.0 - health)
+        else:  # phrygian
+            weight = 0.05 + 0.70 * (1.0 - health)
+        if candidate in MAJORISH_MODES:
+            weight *= 1.0 + style.bright_mode_probability
+        weights.append(weight)
+    mode = dna_rng.choices(family_pool, weights=weights, k=1)[0]
+    meter = style.meters[int.from_bytes(base[12:16], "big") % len(style.meters)]
+    top_modules = sorted(profile.modules, key=lambda item: (-item.loc, item.name))[:3]
+    hook_digest = hashlib.sha256(
+        (identity + "|" + "|".join(module.name for module in top_modules)).encode("utf-8")
+    ).digest()
+    hook_contour = HOOK_CONTOURS[hook_digest[0] % len(HOOK_CONTOURS)]
+    hook_id = hashlib.sha256(
+        (identity + "|" + "|".join(module.name for module in top_modules) + "|hook").encode("utf-8")
+    ).hexdigest()[:12]
     key = Key(tonic_pc=tonic_pc, mode=mode)
 
     progression_pool = (style.progression_pools or {}).get(mode, ())
@@ -170,6 +216,10 @@ def sample_variation_plan(
         drum_groove=drum_groove,
         motif_treatment=motif_treatment,
         guitar_program=guitar_program,
+        meter=meter,
+        repo_fingerprint=identity,
+        hook_id=hook_id,
+        hook_contour=hook_contour,
     )
 
 

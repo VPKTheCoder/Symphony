@@ -10,6 +10,7 @@ from symphony.form import Form
 from symphony.styles import BassPattern, Style
 from symphony.theory import MODES, build_chord
 from symphony.variation import VariationPlan
+from symphony.instruments.repo_hook import add_repo_hook
 
 PROGRAM_ACOUSTIC_BASS = 32
 BASS_MIN, BASS_MAX = 24, 48  # C1–C3
@@ -85,5 +86,7 @@ def render_bass(
                     instrument.notes.append(
                         pretty_midi.Note(velocity=velocity, pitch=pitch, start=start, end=end)
                     )
+    for section in form.sections:
+        add_repo_hook(instrument, form, section, plan, "bass")
     instrument.notes.sort(key=lambda note: (note.start, note.pitch))
     return instrument

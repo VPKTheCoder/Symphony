@@ -12,6 +12,7 @@ from symphony.styles import Style
 from symphony.theory import MODES, build_chord
 from symphony.variation import VariationPlan
 from symphony.instruments.motifs import developed_degree, module_bar_spans, module_motif
+from symphony.instruments.repo_hook import add_repo_hook
 
 GUITAR_MIN, GUITAR_MAX = 40, 76  # E2–E5
 
@@ -46,6 +47,8 @@ def render_guitar(
             _write_lofi(instrument, form, section, style, plan, rng)
         else:
             _write_anthem_rhythm(instrument, form, section, style, plan, rng)
+    for section in form.sections:
+        add_repo_hook(instrument, form, section, plan, "guitar")
     instrument.notes.sort(key=lambda note: (note.start, note.pitch))
     return instrument
 

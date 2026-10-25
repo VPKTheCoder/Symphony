@@ -45,6 +45,7 @@ class Profile:
     call_path: tuple[str, ...]
     coverage_source: str | None = None
     rust_features: dict[str, float | int] = field(default_factory=dict)
+    repo_fingerprint: str | None = None
 
     @property
     def modules_by_name(self) -> dict[str, ModuleProfile]:
@@ -140,6 +141,13 @@ def load_profile(path: str | Path) -> Profile:
         for key, value in raw_features.items()
     ):
         raise ProfileError("rust_features must be an object of numeric values when provided.")
+    repo_fingerprint = raw.get("repo_fingerprint")
+    if repo_fingerprint is not None and (
+        not isinstance(repo_fingerprint, str)
+        or len(repo_fingerprint) != 64
+        or any(character not in "0123456789abcdef" for character in repo_fingerprint.lower())
+    ):
+        raise ProfileError("repo_fingerprint must be a 64-character SHA-256 hex string when provided.")
     return Profile(
         name=name,
         global_metrics=metrics,
@@ -147,6 +155,7 @@ def load_profile(path: str | Path) -> Profile:
         call_path=call_path,
         coverage_source=coverage_source,
         rust_features=raw_features,
+        repo_fingerprint=repo_fingerprint,
     )
 
 

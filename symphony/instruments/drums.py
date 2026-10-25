@@ -9,6 +9,7 @@ import pretty_midi
 from symphony.form import Form
 from symphony.styles import DrumGroove, Style
 from symphony.variation import VariationPlan
+from symphony.instruments.repo_hook import add_repo_hook
 
 DRUM_CHANNEL = 9  # MIDI channel 10
 
@@ -66,6 +67,8 @@ def render_drums(
                     beat = 4.0 - (fill_count - fill_index) * (0.5 if style.name == "anthem" else 0.25)
                     pitch = groove.fill_pitch if fill_index % 2 else 45
                     _hit(instrument, pitch, bar_start + max(0.0, beat), 58 + fill_index * 5, form)
+    for section in form.sections:
+        add_repo_hook(instrument, form, section, plan, "drums")
     instrument.notes.sort(key=lambda note: (note.start, note.pitch))
     return instrument
 

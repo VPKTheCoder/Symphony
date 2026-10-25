@@ -177,9 +177,9 @@ DRUM_GROOVES = {
 
 
 MODE_FAMILIES: dict[str, tuple[str, ...]] = {
-    "majorish": ("major", "lydian", "mixolydian"),
-    "modal": ("dorian", "mixolydian"),
-    "minorish": ("minor", "phrygian"),
+    "majorish": ("major", "lydian", "mixolydian", "dorian", "minor", "phrygian"),
+    "modal": ("major", "lydian", "mixolydian", "dorian", "minor", "phrygian"),
+    "minorish": ("major", "lydian", "mixolydian", "dorian", "minor", "phrygian"),
 }
 
 # Curated four-chord progressions shared by the three style pools. Each style
@@ -281,6 +281,7 @@ class Style:
     drum_grooves: tuple[DrumGroove, ...] = ()
     violin_program: int = 40
     guitar_programs: tuple[int, ...] = (27,)
+    meters: tuple[tuple[int, int], ...] = ((4, 4),)
     motif_treatments: tuple[str, ...] = (
         "repeat", "transpose", "invert", "extend", "fragment"
     )
@@ -288,13 +289,13 @@ class Style:
     def tempo_for(self, avg_complexity: float, rng_value: float) -> int:
         low, high = self.tempo_range
         tempo = low + (high - low) * avg_complexity
-        tempo += (rng_value * 2.0 - 1.0) * 2.0
+        tempo += (rng_value * 2.0 - 1.0) * max(3.0, (high - low) * 0.12)
         return max(low, min(high, round(tempo)))
 
 
 CINEMATIC = Style(
     name="cinematic",
-    tempo_range=(70, 104),
+    tempo_range=(60, 118),
     target_seconds=188.0,
     intro_bars=8,
     outro_bars=8,
@@ -324,11 +325,12 @@ CINEMATIC = Style(
     arrangement_matrices=CINEMATIC_MATRICES,
     drum_grooves=DRUM_GROOVES["cinematic"],
     guitar_programs=(25, 27),
+    meters=((4, 4), (6, 8), (3, 4)),
 )
 
 LOFI = Style(
     name="lofi",
-    tempo_range=(83, 102),
+    tempo_range=(72, 110),
     target_seconds=164.0,
     intro_bars=8,
     outro_bars=8,
@@ -359,11 +361,12 @@ LOFI = Style(
     arrangement_matrices=LOFI_MATRICES,
     drum_grooves=DRUM_GROOVES["lofi"],
     guitar_programs=(24, 27),
+    meters=((4, 4), (6, 8), (3, 4)),
 )
 
 ANTHEM = Style(
     name="anthem",
-    tempo_range=(120, 140),
+    tempo_range=(108, 150),
     target_seconds=174.0,
     intro_bars=4,
     outro_bars=4,
@@ -385,12 +388,12 @@ ANTHEM = Style(
     reverb_damping=0.42,
     reverb_level=0.35,
     target_lufs=-14.0,
-    bright_mode_probability=1.0,
+    bright_mode_probability=0.35,
     climax_octaves=True,
     mode_families={
-        "majorish": ("major", "lydian", "mixolydian"),
-        "modal": ("major", "lydian", "mixolydian"),
-        "minorish": ("major", "lydian", "mixolydian"),
+        "majorish": MODE_FAMILIES["majorish"],
+        "modal": MODE_FAMILIES["modal"],
+        "minorish": MODE_FAMILIES["minorish"],
     },
     progression_pools=PROGRESSION_POOLS,
     piano_patterns=ANTHEM_PATTERNS,
@@ -399,6 +402,7 @@ ANTHEM = Style(
     arrangement_matrices=ANTHEM_MATRICES,
     drum_grooves=DRUM_GROOVES["anthem"],
     guitar_programs=(27, 29),
+    meters=((4, 4), (7, 8)),
 )
 
 STYLES: dict[str, Style] = {

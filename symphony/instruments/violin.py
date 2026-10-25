@@ -13,6 +13,7 @@ from symphony.styles import Style
 from symphony.theory import MODES, build_chord
 from symphony.variation import VariationPlan
 from symphony.instruments.motifs import developed_degree, module_bar_spans, module_motif
+from symphony.instruments.repo_hook import add_repo_hook
 
 VIOLIN_MIN = 55  # G3
 VIOLIN_MAX = 103
@@ -98,6 +99,8 @@ def render_violin(
                         form, style, rng,
                     )
                 phrase_number += 1
+    for section in form.sections:
+        add_repo_hook(instrument, form, section, plan, "violin")
     instrument.notes.sort(key=lambda note: (note.start, note.pitch))
     return instrument
 

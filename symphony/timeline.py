@@ -15,7 +15,7 @@ def build_timeline(composition) -> dict:
     form = composition.form
     profile = composition.profile
     module_lookup = profile.modules_by_name
-    seconds_per_bar = 4.0 * form.seconds_per_beat
+    seconds_per_bar = form.meter_beats_per_bar * form.seconds_per_beat
     complexity_threshold = 0.70
     sections = []
     guide = []
@@ -80,10 +80,16 @@ def build_timeline(composition) -> dict:
         })
     return {
         "profile": profile.name,
+        "repo_fingerprint": composition.variation_plan.repo_fingerprint,
         "style": composition.style.name,
         "seed": composition.seed,
         "tempo": form.tempo,
         "key": form.key.label,
+        "meter": f"{form.meter[0]}/{form.meter[1]}",
+        "hook": {
+            "id": composition.variation_plan.hook_id,
+            "contour": list(composition.variation_plan.hook_contour),
+        },
         "coverage_source": profile.coverage_source,
         "sections": sections,
         "listening_guide": guide,

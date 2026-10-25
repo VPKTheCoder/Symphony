@@ -24,6 +24,7 @@ from symphony.render import RenderError, render_track
 from symphony.styles import STYLES, Style, get_style
 from symphony.variation import VariationPlan, sample_variation_plan
 from symphony.timeline import build_timeline, format_listening_guide, write_timeline
+from symphony.identity import profile_fingerprint, variation_seed
 
 MAX_INSTRUMENTS = 5
 
@@ -55,7 +56,8 @@ def build_composition(
     for attempt in range(128):
         # Retries are deterministic and only occur when a caller supplies the
         # already accepted fingerprints for a variation batch.
-        effective_seed = seed if attempt == 0 else seed + attempt * 1_000_003
+        base_seed = variation_seed(profile, style.name, seed)
+        effective_seed = base_seed if attempt == 0 else base_seed + attempt * 1_000_003
         candidate_rng = random.Random(effective_seed)
         candidate = sample_variation_plan(profile, style, candidate_rng)
         fingerprint = candidate.fingerprint()
@@ -80,6 +82,7 @@ def build_composition(
     midi.instruments.append(render_drums(form, style, profile, rng, plan))
     midi.instruments.append(render_violin(form, profile, style, rng, plan))
     midi.instruments.append(render_guitar(form, profile, style, rng, plan))
+    _apply_meter(midi, plan.meter, form.tempo)
     if len(midi.instruments) > MAX_INSTRUMENTS:
         raise ValueError(f"Composition exceeds the {MAX_INSTRUMENTS}-instrument limit.")
     return Composition(
@@ -97,6 +100,32 @@ def write_midi(composition: Composition, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     composition.midi.write(str(path))
     return path
+
+
+def _apply_meter(midi: pretty_midi.PrettyMIDI, meter: tuple[int, int], tempo: int) -> None:
+    """Warp each generated four-beat bar into its selected curated meter."""
+
+    numerator, denominator = meter
+    target_beats = numerator * 4.0 / denominator
+    ratio = target_beats / 4.0
+    seconds_per_beat = 60.0 / tempo
+
+    def warp(seconds: float) -> float:
+        beat = max(0.0, seconds / seconds_per_beat)
+        bar = int(beat // 4.0)
+        within = beat - bar * 4.0
+        return (bar * target_beats + within * ratio) * seconds_per_beat
+
+    if meter != (4, 4):
+        for instrument in midi.instruments:
+            for note in instrument.notes:
+                note.start = warp(note.start)
+                note.end = max(note.start + 0.01, warp(note.end))
+            for event in (*instrument.control_changes, *instrument.pitch_bends):
+                event.time = warp(event.time)
+    midi.time_signature_changes = [
+        pretty_midi.TimeSignature(numerator, denominator, 0.0)
+    ]
 
 
 def _format_duration(seconds: float) -> str:
@@ -121,8 +150,9 @@ def _summary(composition: Composition, midi_path: Path) -> str:
         f"{_format_duration(form.estimated_seconds)}  |  {form.total_bars} bars\n"
         f"  form: {section_bits}\n"
         f"  call path: {'; '.join(map_bits)}\n"
-        f"  plan (seed {composition.seed}, resample {composition.variation_attempt}): "
+        f"  plan (variation index {composition.seed}, resample {composition.variation_attempt}): "
         f"{composition.variation_plan.summary()}\n"
+        f"  repo fingerprint: {profile_fingerprint(composition.profile)}\n"
         f"  midi: {midi_path}"
     )
 
@@ -148,7 +178,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         choices=sorted(STYLES),
         help="Musical style.",
     )
-    parser.add_argument("--seed", type=int, default=42, help="Deterministic seed.")
+    parser.add_argument("--seed", type=int, default=0, help="Variation index (default: 0); the base seed is derived from repository identity.")
     parser.add_argument(
         "--variations",
         type=int,

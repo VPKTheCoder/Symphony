@@ -31,6 +31,7 @@ except ImportError as exc:  # pragma: no cover - exercised by CLI install error
     ) from exc
 
 from symphony.profile import load_profile
+from symphony.identity import make_repo_fingerprint
 
 _RUST = Language(tree_sitter_rust.language())
 _GENERATED_MARKERS = (
@@ -956,8 +957,10 @@ def analyze_repository(
 
     rust_feature_counts["total_loc"] = total_loc
     rust_features = _rust_feature_profile(rust_feature_counts, modules, depended_by)
+    repo_fingerprint = make_repo_fingerprint(root_crate, module_profiles)
     result = {
         "name": name or root.name or "rust-project",
+        "repo_fingerprint": repo_fingerprint,
         "global": {
             "total_loc": total_loc,
             "unsafe_ratio": round(unsafe_ratio, 6),
