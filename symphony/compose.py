@@ -152,7 +152,7 @@ def _quantize_generated_notes(midi: pretty_midi.PrettyMIDI, form: Form, plan: Va
     """Keep every generated pitched note in the active section's curated scale."""
     base_scale = {(form.key.tonic_pc + interval) % 12 for interval in MODES[form.key.mode]}
     lanes = {"Piano": (49, 108), "Bass": (24, 48), "Violin": (55, 103), "Guitar": (40, 76)}
-    bar_seconds = form.seconds_per_beat * 4.0
+    bar_seconds = form.beats_per_bar * form.seconds_per_beat
     climax = next(section for section in form.sections if section.name == "climax")
     climax_start = climax.start_bar * bar_seconds
     climax_end = climax.end_bar * bar_seconds

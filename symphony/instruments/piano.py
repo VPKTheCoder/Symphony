@@ -16,7 +16,7 @@ import pretty_midi
 from symphony.form import Form, SectionPlan
 from symphony.styles import PianoPattern, Style
 from symphony.variation import VariationPlan
-from symphony.instruments.repo_hook import add_repo_hook
+from symphony.melody import render_hook_fragment
 from symphony.theory import (
     Chord,
     build_chord,
@@ -96,13 +96,16 @@ def render_piano(
 
             assert current is not None
             global_beat = (section.start_bar + local_bar) * form.beats_per_bar
-            _write_pedal(
-                instrument,
-                global_beat=global_beat,
-                beats_per_bar=form.beats_per_bar,
-                seconds_per_beat=form.seconds_per_beat,
-                style=style,
-            )
+            if local_bar % section.bars_per_chord == 0:
+                held = min(section.bars_per_chord, section.bars - local_bar)
+                _write_pedal(
+                    instrument,
+                    global_beat=global_beat,
+                    beats_per_bar=form.beats_per_bar,
+                    seconds_per_beat=form.seconds_per_beat,
+                    style=style,
+                    bars_held=held,
+                )
             _play_bar(
                 instrument,
                 form=form,
@@ -143,7 +146,22 @@ def render_piano(
                 )
 
     for section in form.sections:
-        add_repo_hook(instrument, form, section, plan, "piano")
+        if plan.role_for(section.name, "piano") == "out":
+            continue
+        if section.name == "intro" and style.name != "contemplative" and section.bars >= 6:
+            render_hook_fragment(
+                instrument, form, section, plan, style,
+                part="piano", bars=2, bar_offset=2, octave=0, velocity_scale=0.58,
+            )
+        elif section.name == "outro":
+            render_hook_fragment(
+                instrument, form, section, plan, style,
+                part="piano", bars=2, bar_offset=0, octave=0, velocity_scale=0.70,
+            )
+    # The piano's high shimmer belongs to the climax.  Outside it, fold any
+    # exceptionally high note down an octave so the climax stays the piece's
+    # single highest point.
+    _cap_non_climax_register(instrument, form)
     end_time = form.total_bars * form.beats_per_bar * form.seconds_per_beat
     instrument.control_changes.append(
         pretty_midi.ControlChange(number=64, value=0, time=end_time + 0.2)
@@ -920,6 +938,13 @@ def _choose_chord(
     eleventh = color == "eleventh" and "eleventh" in style.chord_colors
     if section.name in ("outro", "resolution") and local_bar >= section.bars - 2:
         ninth = ninth or color == "seventh"
+    if (
+        section.name in ("outro", "resolution")
+        and local_bar >= section.bars - 2
+        and any(module.todo_count > 0 for module in section.modules)
+    ):
+        # TODO-heavy repositories hang on a suspension before the final tonic.
+        sus4 = True
     return build_chord(
         form.key,
         degree,
@@ -1094,9 +1119,13 @@ def _write_pedal(
     beats_per_bar: int,
     seconds_per_beat: float,
     style: Style,
+    bars_held: int = 1,
 ) -> None:
+    """Pedal each harmony, with a short lift so changes never blur together."""
+
     changes = max(1, style.pedal_changes_per_bar)
-    span = beats_per_bar / changes
+    total = beats_per_bar * max(1, bars_held)
+    span = total / changes
     for index in range(changes):
         start_beat = global_beat + index * span
         end_beat = start_beat + span
@@ -1111,9 +1140,23 @@ def _write_pedal(
             pretty_midi.ControlChange(
                 number=64,
                 value=0,
-                time=max(0.0, end_beat * seconds_per_beat - 0.06),
+                time=max(0.0, end_beat * seconds_per_beat - 0.07),
             )
         )
+
+
+def _cap_non_climax_register(instrument: pretty_midi.Instrument, form: Form) -> None:
+    """Fold rare high piano notes below the climax apex."""
+
+    climax = next(section for section in form.sections if section.name == "climax")
+    bar_seconds = form.beats_per_bar * form.seconds_per_beat
+    start = climax.start_bar * bar_seconds
+    end = climax.end_bar * bar_seconds
+    for note in instrument.notes:
+        if start <= note.start < end:
+            continue
+        while note.pitch > 84:
+            note.pitch -= 12
 
 
 def _apply_swing(beat: float, style: Style) -> float:
