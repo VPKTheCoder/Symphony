@@ -426,11 +426,16 @@ def render_lead_notes(
     events = build_lead_line(form, section, plan, style, part)
     pitches = plan_pitches(form, section, events, part, style)
     overlay = float(getattr(style, "legato_overlap", 0.0) or 0.0)
+    sustain = max(0.0, float(getattr(style, "lead_sustain", 0.0) or 0.0))
     for index, (event, pitch) in enumerate(zip(events, pitches)):
         start = event.beat * form.seconds_per_beat
-        duration = event.duration * form.seconds_per_beat
+        notated = event.duration * form.seconds_per_beat
+        duration = notated * (1.0 + sustain) if sustain and event.duration >= 0.5 else notated
         if overlay and event.duration >= 0.5:
             duration += overlay * form.seconds_per_beat
+        if index + 1 < len(events):
+            next_start = events[index + 1].beat * form.seconds_per_beat
+            duration = max(notated, min(duration, next_start - start - 0.02))
         if part == "guitar":
             start += (index % 3) * 0.004
         start = max(0.0, start)

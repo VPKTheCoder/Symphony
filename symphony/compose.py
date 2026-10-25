@@ -103,6 +103,7 @@ def build_composition(
                     note.pitch = shifted
     _quantize_generated_notes(midi, form, plan)
     _apply_meter(midi, plan.meter, form.tempo)
+    _apply_ritardando(midi, form, style)
     if len(midi.instruments) > MAX_INSTRUMENTS:
         raise ValueError(f"Composition exceeds the {MAX_INSTRUMENTS}-instrument limit.")
     return Composition(
@@ -146,6 +147,35 @@ def _apply_meter(midi: pretty_midi.PrettyMIDI, meter: tuple[int, int], tempo: in
     midi.time_signature_changes = [
         pretty_midi.TimeSignature(numerator, denominator, 0.0)
     ]
+
+
+def _apply_ritardando(midi: pretty_midi.PrettyMIDI, form: Form, style: Style) -> None:
+    """Ease the last two bars, and let the final chord breathe.
+
+    The stretch is applied to absolute event times, so the MIDI tempo stays at
+    the printed marking while the performance slows into the cadence.
+    """
+
+    amount = float(getattr(style, "final_ritardando", 0.0) or 0.0)
+    if amount <= 0.0:
+        return
+    bar_seconds = form.meter_beats_per_bar * form.seconds_per_beat
+    total = form.total_bars * bar_seconds
+    span = max(0.25, bar_seconds * 2.0)
+    start = max(0.0, total - span)
+
+    def warp(seconds: float) -> float:
+        if seconds <= start:
+            return seconds
+        progress = min(1.0, (seconds - start) / span)
+        return start + (seconds - start) * (1.0 + 0.5 * amount * progress)
+
+    for instrument in midi.instruments:
+        for note in instrument.notes:
+            note.start = warp(note.start)
+            note.end = max(note.start + 0.01, warp(note.end))
+        for event in (*instrument.control_changes, *instrument.pitch_bends):
+            event.time = warp(event.time)
 
 
 def _quantize_generated_notes(midi: pretty_midi.PrettyMIDI, form: Form, plan: VariationPlan) -> None:

@@ -135,7 +135,10 @@ def build_form(profile: Profile, style: Style, plan: VariationPlan) -> Form:
 
     for role in ("intro", "theme", "development", "climax", "resolution", "outro"):
         bars = role_bars[role]
-        bars_per_chord = 2 if role in ("intro", "outro") else 1
+        bars_per_chord = (
+            2 if role in ("intro", "outro")
+            else max(1, style.content_bars_per_chord)
+        )
         section_modules = role_to_modules[role]
         intensity = _section_intensity(role, section_modules, plan)
         progression = plan.progression_for(role)

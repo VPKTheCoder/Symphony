@@ -50,6 +50,9 @@ def render_bass(
                 (pitch for pitch in range(BASS_MIN, BASS_MAX + 1) if pitch % 12 == root_pc),
                 key=lambda pitch: abs(pitch - target),
             )
+            if pattern.hold_bars > 1.0 and local_bar % section.bars_per_chord:
+                # A two-bar pedal is attacked once per harmony, not once per bar.
+                continue
             next_root_pc = build_chord(
                 form.key, section.degrees[(local_bar + 1) % section.bars]
             ).root_pc % 12
@@ -76,11 +79,16 @@ def render_bass(
                     duration = max(duration, 3.4)
                 if section.name in {"intro", "outro"}:
                     duration = max(duration, 2.8)
-                velocity = int(58 + section.intensity * 36 + rng.randint(-3, 3))
+                velocity = int(
+                    (58 + section.intensity * 36) * style.bass_gain
+                    + rng.randint(-3, 3)
+                )
                 start = max(0.0, absolute_beat * form.seconds_per_beat)
                 end = min(
                     start + duration * form.seconds_per_beat,
-                    (bar_start + 4.0) * form.seconds_per_beat - 0.015,
+                    (
+                        bar_start + 4.0 * max(1.0, pattern.hold_bars)
+                    ) * form.seconds_per_beat - 0.015,
                 )
                 if end > start:
                     instrument.notes.append(

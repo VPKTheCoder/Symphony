@@ -24,6 +24,8 @@ CASES = (
     ("fd", "anthem", 0),
     ("small", "cinematic", 0),
     ("small", "anthem", 1),
+    ("fd", "contemplative", 0),
+    ("small", "contemplative", 1),
 )
 
 

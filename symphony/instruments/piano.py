@@ -76,7 +76,7 @@ def render_piano(
                 )
                 upper = voice_upper(
                     chord,
-                    low=max(48, style.upper_floor + voicing_style.low_shift),
+                    low=max(49, style.upper_floor + voicing_style.low_shift),
                     high=min(102, style.upper_ceiling + voicing_style.high_shift),
                     previous=previous_upper,
                     target_top=_top_target(form, section, local_bar, style, plan),
@@ -162,7 +162,10 @@ def render_piano(
     # exceptionally high note down an octave so the climax stays the piece's
     # single highest point.
     _cap_non_climax_register(instrument, form)
-    end_time = form.total_bars * form.beats_per_bar * form.seconds_per_beat
+    end_time = max(
+        form.total_bars * form.beats_per_bar * form.seconds_per_beat,
+        max((note.end for note in instrument.notes), default=0.0) + 0.4,
+    )
     instrument.control_changes.append(
         pretty_midi.ControlChange(number=64, value=0, time=end_time + 0.2)
     )
@@ -184,6 +187,12 @@ def _play_bar(
     plan: VariationPlan,
 ) -> None:
     pattern = next(item for item in style.piano_patterns if item.name == plan.pattern_for(section.name))
+    if style.comp_style == "ostinato":
+        _play_ostinato_bar(
+            instrument, form, style, section, local_bar, global_beat, harmony, rng,
+            plan, pattern,
+        )
+        return
     if style.comp_style == "driving" and section.name in {
         "intro", "theme", "development", "climax"
     }:
@@ -229,6 +238,147 @@ def _play_bar(
         _play_outro(
             instrument, form, style, section, local_bar, global_beat, harmony, rng
         )
+
+
+def _play_ostinato_bar(
+    instrument: pretty_midi.Instrument,
+    form: Form,
+    style: Style,
+    section: SectionPlan,
+    local_bar: int,
+    global_beat: float,
+    harmony: _Harmony,
+    rng: random.Random,
+    plan: VariationPlan,
+    pattern: PianoPattern,
+) -> None:
+    """A hypnotic repeating figure over slow harmony.
+
+    The same four-note cell repeats for as long as the harmony holds.  Only its
+    register, dynamics and a sparse high answer change, so the figure reads as a
+    trance rather than a melody competing with the violin.
+    """
+
+    if section.name == "outro" and local_bar == section.bars - 1:
+        _play_contemplative_final_bar(
+            instrument, form, style, section, global_beat, harmony, rng,
+        )
+        return
+
+    beats = {
+        "intro": pattern.intro,
+        "theme": pattern.theme,
+        "development": pattern.development,
+        "climax": pattern.climax,
+        "resolution": pattern.theme,
+        "outro": pattern.intro,
+    }[section.name]
+    if section.name in {"intro", "outro"}:
+        # Frames stay sparse but always keep a quiet pulse on beats 1 and 3.
+        beats = tuple(sorted(set(beats) | {0.0, 2.0}))
+
+    if local_bar % section.bars_per_chord == 0:
+        hold = min(section.bars_per_chord, section.bars - local_bar)
+        _add_note(
+            instrument,
+            harmony.bass,
+            global_beat,
+            duration=max(1.0, hold * 4.0 - 0.15),
+            velocity=_velocity(style, section.intensity, 0.0, -9.0, rng),
+            form=form,
+            style=style,
+            rng=rng,
+        )
+
+    upper = harmony.upper
+    middle = upper[min(1, len(upper) - 1)]
+    if (local_bar // 4) % 2:
+        cell = (upper[0], upper[-2] if len(upper) > 2 else middle, upper[-1], middle)
+    else:
+        cell = (upper[0], middle, upper[-1], middle)
+    growth = local_bar / max(1, section.bars - 1)
+    for index, beat in enumerate(beats):
+        pitch = cell[index % len(cell)]
+        accent = 1.0 if abs(beat) < 1e-6 else -2.5
+        if section.name == "climax":
+            accent += 1.6
+        velocity = _velocity(
+            style, section.intensity, beat, accent + growth * 1.5, rng,
+        )
+        _add_note(
+            instrument,
+            pitch,
+            global_beat + beat,
+            duration=0.82 if section.name == "climax" else 0.95,
+            velocity=velocity,
+            form=form,
+            style=style,
+            rng=rng,
+            top=pitch == upper[-1],
+        )
+
+    ornament = plan.ornament_for(section.name)
+    if local_bar % 4 == 2 and ornament in {"high_reply", "late_answer"}:
+        high = _high_chord_tone(harmony, style, rng, offset=6)
+        if section.name != "climax":
+            high = min(high, 80)
+        _add_note(
+            instrument,
+            high,
+            global_beat + 2.5,
+            duration=1.7,
+            velocity=_velocity(style, section.intensity, 2.5, -9.0, rng),
+            form=form,
+            style=style,
+            rng=rng,
+            top=True,
+        )
+
+
+def _play_contemplative_final_bar(
+    instrument: pretty_midi.Instrument,
+    form: Form,
+    style: Style,
+    section: SectionPlan,
+    global_beat: float,
+    harmony: _Harmony,
+    rng: random.Random,
+) -> None:
+    """Let the last tonic ring well past the bar line."""
+
+    duration = max(4.0, style.final_chord_beats)
+    _add_note(
+        instrument,
+        harmony.bass,
+        global_beat,
+        duration=duration,
+        velocity=_velocity(style, section.intensity, 0.0, -7.0, rng),
+        form=form,
+        style=style,
+        rng=rng,
+    )
+    _add_chord(
+        instrument,
+        harmony.upper,
+        global_beat,
+        duration=duration,
+        base_velocity=_velocity(style, section.intensity, 0.0, -2.0, rng),
+        form=form,
+        style=style,
+        rng=rng,
+        roll=True,
+    )
+    _add_note(
+        instrument,
+        min(_high_chord_tone(harmony, style, rng, offset=6), 80),
+        global_beat + 1.25,
+        duration=max(2.0, duration - 1.5),
+        velocity=_velocity(style, section.intensity, 1.25, -10.0, rng),
+        form=form,
+        style=style,
+        rng=rng,
+        top=True,
+    )
 
 
 def _play_driving_bar(
@@ -892,23 +1042,23 @@ def _play_outro(
             style=style,
             rng=rng,
         )
-        if local_bar < section.bars - 2:
-            _add_chord(
-                instrument,
-                harmony.upper,
-                global_beat + 1.5,
-                duration=3.5,
-                base_velocity=_velocity(
-                    style, section.intensity, 1.5, -3.0, rng
-                ),
-                form=form,
-                style=style,
-                rng=rng,
-                roll=True,
-            )
+        final_approach = local_bar >= section.bars - 2
+        _add_chord(
+            instrument,
+            harmony.upper,
+            global_beat + 1.5,
+            duration=3.2 if final_approach else 3.5,
+            base_velocity=_velocity(
+                style, section.intensity, 1.5, -7.0 if final_approach else -3.0, rng
+            ),
+            form=form,
+            style=style,
+            rng=rng,
+            roll=True,
+        )
         return
 
-    if local_bar < section.bars - 3:
+    if local_bar < section.bars - 1:
         _add_note(
             instrument,
             _high_chord_tone(harmony, style, rng, offset=5),

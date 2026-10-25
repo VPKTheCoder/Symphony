@@ -56,12 +56,18 @@ def render_drums(
                         continue
                     if rng.random() > density:
                         continue
-                    velocity = base_velocity + int(section.intensity * 12) + rng.randint(-5, 5)
+                    velocity = int(
+                        (
+                            base_velocity
+                            + int(section.intensity * 12)
+                            + rng.randint(-5, 5)
+                        ) * style.drum_gain
+                    )
                     if build_bar and pitch == 42:
-                        velocity += 9
+                        velocity += int(9 * style.drum_gain)
                     _hit(instrument, pitch, bar_start + beat, velocity, form)
             # Fills happen only on the final bar before a section boundary.
-            if is_boundary_bar:
+            if is_boundary_bar and style.drum_fills:
                 fill_count = 2 + min(4, round(complexity / 2.0))
                 for fill_index in range(fill_count):
                     beat = 4.0 - (fill_count - fill_index) * (0.5 if style.name == "anthem" else 0.25)

@@ -43,6 +43,7 @@ class BassPattern:
     lead_beats: tuple[float, ...]
     duration: float
     passing_tone: bool = True
+    hold_bars: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -149,6 +150,48 @@ ANTHEM_MATRICES = (
     }),
 )
 
+_CONTEMPLATIVE_LEADS = {
+    "intro": "piano", "theme": "violin", "development": "violin",
+    "climax": "violin", "resolution": "violin", "outro": "piano",
+}
+CONTEMPLATIVE_MATRICES = (
+    _arrangement_matrix("ct_still", _CONTEMPLATIVE_LEADS, {
+        "intro": ("bass", "drums", "violin", "guitar"),
+        "theme": ("guitar", "drums"),
+        "development": ("drums",),
+        "climax": ("guitar",),
+        "resolution": ("guitar", "drums"),
+        "outro": ("bass", "drums", "violin", "guitar"),
+    }),
+    _arrangement_matrix("ct_pedal", _CONTEMPLATIVE_LEADS, {
+        "intro": ("bass", "drums", "violin", "guitar"),
+        "theme": ("guitar", "drums"),
+        "development": ("drums",),
+        "climax": ("guitar",),
+        "resolution": ("drums",),
+        "outro": ("bass", "drums", "violin", "guitar"),
+    }),
+    _arrangement_matrix("ct_glow", _CONTEMPLATIVE_LEADS, {
+        "intro": ("bass", "drums", "violin", "guitar"),
+        "theme": ("guitar", "drums"),
+        "development": ("drums",),
+        "climax": (),
+        "resolution": ("guitar", "drums"),
+        "outro": ("bass", "drums", "violin", "guitar"),
+    }),
+)
+
+CONTEMPLATIVE_PATTERNS = (
+    PianoPattern("still_water", (0.0, 2.0), (0.0, 1.0, 2.0, 3.0), (0.0, 1.5, 3.0), (0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5), "ostinato"),
+    PianoPattern("slow_ripple", (0.0, 2.0), (0.0, 1.5, 2.5), (0.0, 1.0, 2.0, 3.0), (0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5), "ostinato"),
+    PianoPattern("glass_beads", (0.0, 2.0), (0.0, 1.0, 2.0, 3.0), (0.0, 0.5, 1.5, 2.5, 3.5), (0.0, 0.75, 1.5, 2.25, 3.0, 3.75), "ostinato"),
+    PianoPattern("drift", (0.0,), (0.0, 2.0), (0.0, 1.5, 2.5), (0.0, 1.0, 2.0, 3.0), "ostinato"),
+    PianoPattern("quiet_clock", (0.0, 2.0), (0.0, 1.0, 2.0, 3.0), (0.0, 1.0, 1.5, 2.5, 3.0), (0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5), "ostinato"),
+    PianoPattern("snowfall", (0.0, 2.5), (0.0, 1.5, 2.5), (0.0, 1.0, 2.0, 3.0), (0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5), "ostinato"),
+    PianoPattern("open_book", (0.0, 2.0), (0.0, 2.0), (0.0, 1.5, 2.5), (0.0, 1.0, 2.0, 3.0), "ostinato"),
+    PianoPattern("deep_hum", (0.0,), (0.0, 2.0), (0.0, 1.0, 2.0, 3.0), (0.0, 1.0, 2.0, 3.0), "ostinato"),
+)
+
 BASS_PATTERNS = (
     BassPattern("root_hold", (0.0,), (0.0, 2.0), 4.0),
     BassPattern("two_step", (0.0, 2.0), (0.0, 1.0, 2.0, 3.0), 1.7),
@@ -174,6 +217,22 @@ DRUM_GROOVES = {
         DrumGroove("anthem_push", (0.0, 1.5, 2.5), (1.0, 3.0), (0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5), 50),
     ),
 }
+
+
+CONTEMPLATIVE_BASS_PATTERNS = (
+    BassPattern("root_hold", (0.0,), (0.0, 2.0), 4.0),
+    BassPattern("pedal_root", (0.0,), (0.0,), 7.6, passing_tone=False, hold_bars=2.0),
+    BassPattern("deep_pedal", (0.0,), (0.0,), 7.8, passing_tone=False, hold_bars=2.0),
+    BassPattern("slow_pulse", (0.0, 2.0), (0.0, 2.0), 1.9, passing_tone=False),
+    BassPattern("two_step", (0.0, 2.0), (0.0, 1.0, 2.0, 3.0), 1.7, passing_tone=False),
+)
+
+CONTEMPLATIVE_DRUM_GROOVES = (
+    DrumGroove("contemplative_heartbeat", (0.0, 2.0), (), (), 37),
+    DrumGroove("contemplative_brush", (0.0,), (), (2.0,), 37),
+    DrumGroove("contemplative_shimmer", (0.0, 2.0), (), (1.0, 3.0), 39),
+    DrumGroove("contemplative_pulse", (0.0,), (2.0,), (1.0, 3.0), 37),
+)
 
 
 MODE_FAMILIES: dict[str, tuple[str, ...]] = {
@@ -285,6 +344,13 @@ class Style:
     motif_treatments: tuple[str, ...] = (
         "repeat", "transpose", "invert", "extend", "fragment"
     )
+    content_bars_per_chord: int = 1
+    final_chord_beats: float = 4.0
+    final_ritardando: float = 0.0
+    drum_gain: float = 1.0
+    drum_fills: bool = True
+    bass_gain: float = 1.0
+    lead_sustain: float = 0.0
 
     def tempo_for(self, avg_complexity: float, rng_value: float) -> int:
         low, high = self.tempo_range
@@ -405,10 +471,54 @@ ANTHEM = Style(
     meters=((4, 4), (7, 8)),
 )
 
+CONTEMPLATIVE = Style(
+    name="contemplative",
+    tempo_range=(60, 84),
+    target_seconds=196.0,
+    intro_bars=8,
+    outro_bars=8,
+    comp_style="ostinato",
+    seventh_probability=0.55,
+    ninth_probability=0.22,
+    upper_voices=4,
+    upper_floor=50,
+    upper_ceiling=84,
+    upper_gap=13,
+    swing_ratio=0.0,
+    humanize_ms=(15, 30),
+    velocity_floor=24,
+    velocity_ceiling=86,
+    velocity_curve=0.90,
+    pedal_changes_per_bar=1,
+    chord_roll_ms=(12, 30),
+    reverb_room=0.86,
+    reverb_damping=0.30,
+    reverb_level=0.60,
+    target_lufs=-17.5,
+    mode_families=MODE_FAMILIES,
+    progression_pools=PROGRESSION_POOLS,
+    piano_patterns=CONTEMPLATIVE_PATTERNS,
+    chord_colors=("triad", "seventh", "ninth"),
+    ornament_pool=("none", "high_reply", "late_answer"),
+    arrangement_matrices=CONTEMPLATIVE_MATRICES,
+    bass_patterns=CONTEMPLATIVE_BASS_PATTERNS,
+    drum_grooves=CONTEMPLATIVE_DRUM_GROOVES,
+    guitar_programs=(24, 25),
+    meters=((4, 4), (6, 8)),
+    content_bars_per_chord=2,
+    final_chord_beats=8.0,
+    final_ritardando=0.18,
+    drum_gain=0.42,
+    drum_fills=False,
+    bass_gain=0.78,
+    lead_sustain=0.18,
+)
+
 STYLES: dict[str, Style] = {
     CINEMATIC.name: CINEMATIC,
     LOFI.name: LOFI,
     ANTHEM.name: ANTHEM,
+    CONTEMPLATIVE.name: CONTEMPLATIVE,
 }
 
 
