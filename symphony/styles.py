@@ -64,6 +64,14 @@ class ArrangementMatrix:
         row = next(roles for section_name, roles in self.rows if section_name == section)
         return next(role for instrument_name, role in row if instrument_name == instrument)
 
+    def active(self, section: str) -> tuple[str, ...]:
+        row = next(roles for section_name, roles in self.rows if section_name == section)
+        return tuple(name for name, role in row if role != "out")
+
+    def leads(self, section: str) -> tuple[str, ...]:
+        row = next(roles for section_name, roles in self.rows if section_name == section)
+        return tuple(name for name, role in row if role == "lead")
+
 
 def _arrangement_matrix(
     name: str,
@@ -100,35 +108,47 @@ _LOFI_LEADS = {
 CINEMATIC_MATRICES = (
     _arrangement_matrix("c_opening", _CINEMATIC_LEADS, {
         "intro": ("bass", "drums", "violin", "guitar"),
-        "theme": ("guitar",), "development": ("guitar",),
-        "resolution": ("guitar",), "outro": ("bass", "drums", "violin", "guitar"),
+        "theme": ("drums", "guitar"), "development": ("drums", "guitar"),
+        "climax": ("guitar",),
+        "resolution": ("drums", "guitar"),
+        "outro": ("bass", "drums", "violin", "guitar"),
     }),
     _arrangement_matrix("c_arpeggio", _CINEMATIC_LEADS, {
         "intro": ("bass", "drums", "violin", "guitar"),
-        "theme": ("guitar",), "development": ("guitar",),
-        "resolution": ("guitar",), "outro": ("bass", "drums", "violin", "guitar"),
+        "theme": ("bass", "drums"), "development": ("bass", "drums"),
+        "climax": ("guitar",),
+        "resolution": ("bass", "drums"),
+        "outro": ("bass", "drums", "violin", "guitar"),
     }),
     _arrangement_matrix("c_swell", {**_CINEMATIC_LEADS, "development": "guitar"}, {
         "intro": ("bass", "drums", "violin", "guitar"),
-        "theme": ("guitar",), "development": ("violin",),
-        "resolution": ("guitar",), "outro": ("bass", "drums", "violin", "guitar"),
+        "theme": ("drums", "guitar"), "development": ("drums", "violin"),
+        "climax": ("guitar",),
+        "resolution": ("drums", "violin"),
+        "outro": ("bass", "drums", "violin", "guitar"),
     }),
 )
 LOFI_MATRICES = (
     _arrangement_matrix("l_lazy", _LOFI_LEADS, {
         "intro": ("bass", "drums", "violin", "guitar"),
-        "theme": ("guitar",), "development": ("guitar",),
-        "resolution": ("guitar",), "outro": ("bass", "drums", "violin", "guitar"),
+        "theme": ("drums", "guitar"), "development": ("drums", "guitar"),
+        "climax": ("guitar",),
+        "resolution": ("drums", "guitar"),
+        "outro": ("bass", "drums", "violin", "guitar"),
     }),
     _arrangement_matrix("l_hazy", _LOFI_LEADS, {
         "intro": ("bass", "drums", "violin", "guitar"),
-        "theme": ("guitar",), "development": ("guitar",),
-        "resolution": ("guitar",), "outro": ("bass", "drums", "violin", "guitar"),
+        "theme": ("bass", "drums"), "development": ("bass", "drums"),
+        "climax": ("guitar",),
+        "resolution": ("bass", "drums"),
+        "outro": ("bass", "drums", "violin", "guitar"),
     }),
     _arrangement_matrix("l_pocket", {**_LOFI_LEADS, "development": "guitar"}, {
         "intro": ("bass", "drums", "violin", "guitar"),
-        "theme": ("guitar",), "development": ("violin",),
-        "resolution": ("guitar",), "outro": ("bass", "drums", "violin", "guitar"),
+        "theme": ("drums", "guitar"), "development": ("bass", "drums"),
+        "climax": ("guitar",),
+        "resolution": ("bass", "drums"),
+        "outro": ("bass", "drums", "violin", "guitar"),
     }),
 )
 ANTHEM_MATRICES = (
@@ -158,25 +178,25 @@ CONTEMPLATIVE_MATRICES = (
     _arrangement_matrix("ct_still", _CONTEMPLATIVE_LEADS, {
         "intro": ("bass", "drums", "violin", "guitar"),
         "theme": ("guitar", "drums"),
-        "development": ("drums",),
+        "development": ("bass", "drums"),
         "climax": ("guitar",),
-        "resolution": ("guitar", "drums"),
+        "resolution": ("bass", "drums"),
         "outro": ("bass", "drums", "violin", "guitar"),
     }),
     _arrangement_matrix("ct_pedal", _CONTEMPLATIVE_LEADS, {
         "intro": ("bass", "drums", "violin", "guitar"),
         "theme": ("guitar", "drums"),
-        "development": ("drums",),
+        "development": ("guitar", "drums"),
         "climax": ("guitar",),
-        "resolution": ("drums",),
+        "resolution": ("guitar", "drums"),
         "outro": ("bass", "drums", "violin", "guitar"),
     }),
     _arrangement_matrix("ct_glow", _CONTEMPLATIVE_LEADS, {
         "intro": ("bass", "drums", "violin", "guitar"),
-        "theme": ("guitar", "drums"),
-        "development": ("drums",),
-        "climax": (),
-        "resolution": ("guitar", "drums"),
+        "theme": ("bass", "drums"),
+        "development": ("guitar", "drums"),
+        "climax": ("guitar",),
+        "resolution": ("bass", "drums"),
         "outro": ("bass", "drums", "violin", "guitar"),
     }),
 )
@@ -351,6 +371,31 @@ class Style:
     drum_fills: bool = True
     bass_gain: float = 1.0
     lead_sustain: float = 0.0
+    lead_notes_per_bar: int = 4
+    max_active_parts: int = 5
+    climax_max_active_parts: int = 5
+    phrase_rest_bars: int = 0
+    max_piano_attacks_per_bar: int = 8
+    drum_density_cap: float = 1.0
+
+    def active_limit_for(self, section: str) -> int:
+        return self.climax_max_active_parts if section == "climax" else self.max_active_parts
+
+    def validate_arrangement(self, matrix: ArrangementMatrix) -> None:
+        """Reject matrices that would crowd the style or double its lead."""
+
+        for section, _row in matrix.rows:
+            if len(matrix.leads(section)) > 1:
+                raise ValueError(
+                    f"{matrix.name}/{section}: at most one instrument may lead."
+                )
+            active = matrix.active(section)
+            limit = self.active_limit_for(section)
+            if len(active) > limit:
+                raise ValueError(
+                    f"{matrix.name}/{section}: {len(active)} active parts exceed "
+                    f"the {self.name} limit of {limit}."
+                )
 
     def tempo_for(self, avg_complexity: float, rng_value: float) -> int:
         low, high = self.tempo_range
@@ -392,6 +437,11 @@ CINEMATIC = Style(
     drum_grooves=DRUM_GROOVES["cinematic"],
     guitar_programs=(25, 27),
     meters=((4, 4), (6, 8), (3, 4), (7, 8)),
+    max_active_parts=3,
+    climax_max_active_parts=4,
+    phrase_rest_bars=1,
+    max_piano_attacks_per_bar=6,
+    drum_density_cap=0.82,
 )
 
 LOFI = Style(
@@ -428,6 +478,11 @@ LOFI = Style(
     drum_grooves=DRUM_GROOVES["lofi"],
     guitar_programs=(24, 27),
     meters=((4, 4), (6, 8), (3, 4), (7, 8)),
+    max_active_parts=3,
+    climax_max_active_parts=4,
+    phrase_rest_bars=1,
+    max_piano_attacks_per_bar=7,
+    drum_density_cap=0.90,
 )
 
 ANTHEM = Style(
@@ -469,6 +524,9 @@ ANTHEM = Style(
     drum_grooves=DRUM_GROOVES["anthem"],
     guitar_programs=(27, 29),
     meters=((4, 4), (7, 8)),
+    max_active_parts=4,
+    climax_max_active_parts=5,
+    max_piano_attacks_per_bar=9,
 )
 
 CONTEMPLATIVE = Style(
@@ -512,6 +570,11 @@ CONTEMPLATIVE = Style(
     drum_fills=False,
     bass_gain=0.78,
     lead_sustain=0.18,
+    max_active_parts=3,
+    climax_max_active_parts=4,
+    phrase_rest_bars=1,
+    max_piano_attacks_per_bar=7,
+    drum_density_cap=0.48,
 )
 
 STYLES: dict[str, Style] = {

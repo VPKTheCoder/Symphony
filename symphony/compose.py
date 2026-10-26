@@ -25,6 +25,7 @@ from symphony.styles import STYLES, Style, get_style
 from symphony.variation import VariationPlan, sample_variation_plan
 from symphony.timeline import build_timeline, format_listening_guide, write_timeline
 from symphony.identity import profile_fingerprint, variation_seed
+from symphony.space import apply_space_policy
 from symphony.theory import MODES
 
 MAX_INSTRUMENTS = 5
@@ -83,6 +84,7 @@ def build_composition(
     midi.instruments.append(render_drums(form, style, profile, rng, plan))
     midi.instruments.append(render_violin(form, profile, style, rng, plan))
     midi.instruments.append(render_guitar(form, profile, style, rng, plan))
+    apply_space_policy(midi, form, style, plan)
     if plan.signature_id == "sprawl":
         climax = next(section for section in form.sections if section.name == "climax")
         bar_seconds = form.seconds_per_beat * 4.0

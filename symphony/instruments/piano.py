@@ -276,6 +276,13 @@ def _play_ostinato_bar(
     if section.name in {"intro", "outro"}:
         # Frames stay sparse but always keep a quiet pulse on beats 1 and 3.
         beats = tuple(sorted(set(beats) | {0.0, 2.0}))
+    ornament = plan.ornament_for(section.name)
+    high_reply = (
+        local_bar % 4 == 2 and ornament in {"high_reply", "late_answer"}
+    )
+    bass_slots = 1 if local_bar % section.bars_per_chord == 0 else 0
+    budget = style.max_piano_attacks_per_bar - bass_slots - int(high_reply)
+    beats = _limit_attacks(beats, max(1, budget))
 
     if local_bar % section.bars_per_chord == 0:
         hold = min(section.bars_per_chord, section.bars - local_bar)
@@ -317,8 +324,7 @@ def _play_ostinato_bar(
             top=pitch == upper[-1],
         )
 
-    ornament = plan.ornament_for(section.name)
-    if local_bar % 4 == 2 and ornament in {"high_reply", "late_answer"}:
+    if high_reply:
         high = _high_chord_tone(harmony, style, rng, offset=6)
         if section.name != "climax":
             high = min(high, 80)
@@ -417,6 +423,7 @@ def _play_driving_bar(
         beats = pattern.development
     else:
         beats = pattern.climax
+    beats = _limit_attacks(beats, max(1, style.max_piano_attacks_per_bar - 1))
 
     _add_note(
         instrument,
@@ -476,6 +483,24 @@ def _play_varied_bar(
     else:
         beats = pattern.theme
 
+    ornament = plan.ornament_for(section.name)
+    fill_beats = (
+        {
+            "high_reply": (3.0,),
+            "pickup": (3.0, 3.5),
+            "late_answer": (2.75, 3.5),
+            "turn": (3.0, 3.5),
+            "rising_fill": (2.5, 3.0, 3.5),
+            "octave_answer": (3.0, 3.5),
+        }.get(ornament, ())
+        if ornament != "none" and local_bar % 2 == 1
+        else ()
+    )
+    beats = _limit_attacks(
+        beats,
+        max(1, style.max_piano_attacks_per_bar - 1 - len(fill_beats)),
+    )
+
     bass_duration = 2.4 if section.name == "theme" else 3.2
     _add_note(
         instrument,
@@ -517,16 +542,7 @@ def _play_varied_bar(
             roll=True,
         )
 
-    ornament = plan.ornament_for(section.name)
-    if ornament != "none" and local_bar % 2 == 1:
-        fill_beats = {
-            "high_reply": (3.0,),
-            "pickup": (3.0, 3.5),
-            "late_answer": (2.75, 3.5),
-            "turn": (3.0, 3.5),
-            "rising_fill": (2.5, 3.0, 3.5),
-            "octave_answer": (3.0, 3.5),
-        }.get(ornament, ())
+    if fill_beats:
         for index, beat in enumerate(fill_beats):
             pitch = harmony.upper[-1 - (index % min(2, len(harmony.upper)))]
             _add_note(
@@ -1167,6 +1183,22 @@ def _fifth_pitch(harmony: _Harmony) -> int:
     if candidate % 12 in harmony.chord.pitch_classes:
         return candidate
     return harmony.bass + 6
+
+
+def _limit_attacks(beats: tuple[float, ...], cap: int) -> tuple[float, ...]:
+    """Thin a comping pattern without losing its first and last attack."""
+
+    cap = max(1, int(cap))
+    if len(beats) <= cap:
+        return beats
+    if cap == 1:
+        return (beats[0],)
+    indices: list[int] = []
+    for index in range(cap):
+        position = round(index * (len(beats) - 1) / (cap - 1))
+        if position not in indices:
+            indices.append(position)
+    return tuple(beats[position] for position in indices)
 
 
 def _velocity(

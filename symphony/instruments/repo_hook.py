@@ -34,6 +34,9 @@ def add_signature_gesture(
     plan: VariationPlan,
     part: str,
 ) -> None:
+    # A gesture may not quietly re-activate a part the arrangement has rested.
+    if plan.role_for(section.name, part) == "out":
+        return
     if part == "bass" and plan.signature_id == "hub":
         _pedal(instrument, form, section)
     elif part == "violin" and plan.signature_id == "unsafe":

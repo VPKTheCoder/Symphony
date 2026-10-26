@@ -12,6 +12,7 @@ from symphony.styles import Style
 from symphony.theory import MODES, build_chord
 from symphony.variation import VariationPlan
 from symphony.melody import render_lead_notes
+from symphony.space import phrase_rest_bar
 from symphony.instruments.repo_hook import add_repo_hook
 
 GUITAR_MIN, GUITAR_MAX = 40, 76  # E2–E5
@@ -55,6 +56,8 @@ def render_guitar(
 
 def _write_anthem_rhythm(instrument, form, section, style, plan, rng) -> None:
     for bar in range(section.bars):
+        if phrase_rest_bar(style, section, bar, "guitar"):
+            continue
         chord = build_chord(form.key, section.degrees[bar])
         root = _pitch(chord.root_pc, 48)
         fifth_pc = chord.pitch_classes[2] if len(chord.pitch_classes) > 2 else chord.root_pc
@@ -82,6 +85,8 @@ def _write_cinematic(instrument, form, section, style, plan, rng) -> None:
     else:
         beats = (0.0, 3.0)
     for bar in range(section.bars):
+        if phrase_rest_bar(style, section, bar, "guitar"):
+            continue
         if section.name == "resolution" and bar % 2:
             continue
         chord = build_chord(
@@ -113,6 +118,8 @@ def _write_cinematic(instrument, form, section, style, plan, rng) -> None:
 
 def _write_lofi(instrument, form, section, style, plan, rng) -> None:
     for bar in range(section.bars):
+        if phrase_rest_bar(style, section, bar, "guitar"):
+            continue
         chord = build_chord(
             form.key,
             section.degrees[bar],
@@ -139,6 +146,8 @@ def _write_fingerstyle(instrument, form, section, style, plan, rng) -> None:
     else:
         beats = (0.0, 2.0)
     for bar in range(section.bars):
+        if phrase_rest_bar(style, section, bar, "guitar"):
+            continue
         chord = build_chord(form.key, section.degrees[bar], add9=bar % 4 == 2)
         notes = sorted(
             _pitch(pc, 52 + index * 3)

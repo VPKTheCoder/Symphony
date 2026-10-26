@@ -208,6 +208,7 @@ def sample_variation_plan(
     if not style.bass_patterns or not style.drum_grooves:
         raise ValueError(f"Style {style.name!r} needs bass and drum pools.")
     matrix = rng.choice(style.arrangement_matrices)
+    style.validate_arrangement(matrix)
     bass_pattern = rng.choice(style.bass_patterns).name
     drum_groove = rng.choice(style.drum_grooves).name
     motif_treatment = rng.choice(style.motif_treatments)

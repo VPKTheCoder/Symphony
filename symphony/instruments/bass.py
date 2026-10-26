@@ -10,6 +10,7 @@ from symphony.form import Form
 from symphony.styles import BassPattern, Style
 from symphony.theory import MODES, build_chord
 from symphony.variation import VariationPlan
+from symphony.space import phrase_rest_bar
 from symphony.instruments.repo_hook import add_repo_hook
 
 PROGRAM_ACOUSTIC_BASS = 32
@@ -39,6 +40,9 @@ def render_bass(
             continue
         beats = pattern.lead_beats if plan.role_for(section.name, "bass") == "lead" else pattern.support_beats
         for local_bar in range(section.bars):
+            bar_start = (section.start_bar + local_bar) * form.beats_per_bar
+            if phrase_rest_bar(style, section, local_bar, "bass"):
+                continue
             todo_rest = (
                 local_bar == min(1, section.bars - 1)
                 and any(module.todo_count > 0 for module in section.modules)
@@ -56,7 +60,10 @@ def render_bass(
             next_root_pc = build_chord(
                 form.key, section.degrees[(local_bar + 1) % section.bars]
             ).root_pc % 12
-            bar_start = (section.start_bar + local_bar) * form.beats_per_bar
+            sustain_end_beat = bar_start + 4.0 * max(1.0, pattern.hold_bars)
+            if phrase_rest_bar(style, section, local_bar + 1, "bass"):
+                # Do not let a held pedal ring through the phrase's breath.
+                sustain_end_beat = min(sustain_end_beat, bar_start + 4.0)
             for index, beat in enumerate(beats):
                 if todo_rest and beat < 1.0:
                     continue
@@ -86,9 +93,7 @@ def render_bass(
                 start = max(0.0, absolute_beat * form.seconds_per_beat)
                 end = min(
                     start + duration * form.seconds_per_beat,
-                    (
-                        bar_start + 4.0 * max(1.0, pattern.hold_bars)
-                    ) * form.seconds_per_beat - 0.015,
+                    sustain_end_beat * form.seconds_per_beat - 0.015,
                 )
                 if end > start:
                     instrument.notes.append(

@@ -9,6 +9,7 @@ import pretty_midi
 from symphony.form import Form
 from symphony.styles import DrumGroove, Style
 from symphony.variation import VariationPlan
+from symphony.space import phrase_rest_bar
 from symphony.instruments.repo_hook import add_repo_hook
 
 DRUM_CHANNEL = 9  # MIDI channel 10
@@ -37,8 +38,13 @@ def render_drums(
             sum(module_complexity[module.name] for module in section.modules)
             / max(1, len(section.modules))
         )
-        density = min(1.0, 0.65 + complexity * 0.08 + section.intensity * 0.16)
+        density = min(
+            style.drum_density_cap,
+            0.65 + complexity * 0.08 + section.intensity * 0.16,
+        )
         for local_bar in range(section.bars):
+            if phrase_rest_bar(style, section, local_bar, "drums"):
+                continue
             todo_rest = (
                 local_bar == min(1, section.bars - 1)
                 and any(module.todo_count > 0 for module in section.modules)
