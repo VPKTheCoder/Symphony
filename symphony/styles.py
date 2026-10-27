@@ -377,6 +377,8 @@ class Style:
     phrase_rest_bars: int = 0
     max_piano_attacks_per_bar: int = 8
     drum_density_cap: float = 1.0
+    phrase_dynamic: float = 0.0
+    metric_accent: float = 0.0
 
     def active_limit_for(self, section: str) -> int:
         return self.climax_max_active_parts if section == "climax" else self.max_active_parts
@@ -442,6 +444,8 @@ CINEMATIC = Style(
     phrase_rest_bars=1,
     max_piano_attacks_per_bar=6,
     drum_density_cap=0.82,
+    phrase_dynamic=3.5,
+    metric_accent=2.5,
 )
 
 LOFI = Style(
@@ -483,6 +487,8 @@ LOFI = Style(
     phrase_rest_bars=1,
     max_piano_attacks_per_bar=7,
     drum_density_cap=0.90,
+    phrase_dynamic=2.5,
+    metric_accent=1.5,
 )
 
 ANTHEM = Style(
@@ -527,6 +533,8 @@ ANTHEM = Style(
     max_active_parts=4,
     climax_max_active_parts=5,
     max_piano_attacks_per_bar=9,
+    phrase_dynamic=2.0,
+    metric_accent=2.0,
 )
 
 CONTEMPLATIVE = Style(
@@ -575,6 +583,8 @@ CONTEMPLATIVE = Style(
     phrase_rest_bars=1,
     max_piano_attacks_per_bar=7,
     drum_density_cap=0.48,
+    phrase_dynamic=4.0,
+    metric_accent=1.5,
 )
 
 STYLES: dict[str, Style] = {
