@@ -1,8 +1,8 @@
 # Musical beauty upgrade — checkpoint
 
-Status: **Steps 1-4 complete. Steps 5-8 remain.**
+Status: **Steps 1-5 complete. Steps 6-8 remain.**
 Branch: `main`  
-HEAD at checkpoint: `105212c`  
+HEAD at checkpoint: `8d5069f`  
 Last verified: 2026-10-27
 
 This document is the continuation point for the eight-step musical-beauty
@@ -17,6 +17,7 @@ deferred, and the exact next move.
 | 2 | `contemplative` slow style | `7dddfb8` |
 | 3 | Arrangement space, phrase rests, density budgets | `6f02c82` |
 | 4 | Ensemble pocket, phrase dynamics, metric accents | `105212c` |
+| 5 | Mastering audit, measured loudness, soundfont decision | `8d5069f` |
 
 ### Step 3 details
 
@@ -61,20 +62,48 @@ deferred, and the exact next move.
 - New coverage lives in `tests/test_performance.py` (swing placement, phrase
   arc, accents, lead preservation, velocity/timing bounds, byte determinism).
 
+### Step 5 details
+
+- **Soundfont: keep GeneralUser GS v1.471.** The installed bank is 31,281,186
+  bytes, SHA-256 `f45b6b4a…b839a`, and the setup helper verifies the release
+  archive before extraction. MuseScore_General (MIT) and FluidR3_GM (MIT) were
+  evaluated as licensed alternatives; neither is clearly better for these five
+  parts without an A/B listening test, and switching would change every timbre.
+  The full comparison is in `docs/MASTERING.md`.
+- **Raw synth clipping fixed.** FluidSynth now writes 32-bit float instead of
+  16-bit; the anthem raw render reaches +0.9 dBTP and previously lost six
+  clipped samples in the file converter.
+- **Loudness overshoot fixed.** ffmpeg's `alimiter` auto-level defaults to on
+  and was pushing every old master above its style target. The chain now
+  disables auto-level and uses a measured two-pass `loudnorm` with the same
+  `midi_end + 3.0 s` trim as the final pass. A 20 Hz high-pass removes
+  sub-audible rumble without touching the bass lane's C1 fundamental.
+- **Measured result.** The four fixed masters hit -16.0 / -15.9 / -14.0 /
+  -17.4 LUFS (cinematic / lofi / anthem / contemplative), all at -1.5 dBTP with
+  zero clipped samples. Loudness range increased by 1.8 / 2.1 / 0 / 0.2 LU,
+  confirming the old limiter was flattening the dynamic arc.
+- **Deliberately deferred.** Style EQ, bus compression, and the
+  MuseScore_General A/B are Step 8 audition items; they are not adopted
+  without listening.
+- New coverage lives in `tests/test_render.py` (filter/target construction,
+  measurement parsing, float synth output).
+
 ## Verification at this checkpoint
 
 | Check | Command | Result |
 |---|---|---|
-| Unit suite | `.\.venv\Scripts\python.exe -m unittest discover -s tests -q` | **39 passed** |
+| Unit suite | `.\.venv\Scripts\python.exe -m unittest discover -s tests -q` | **44 passed** |
 | Quality sweep | `.\.venv\Scripts\python.exe tools\validate_quality.py` | **320 / 320 passed** |
 | Silence sweep | `.\.venv\Scripts\python.exe tools\validate_silence.py` | **64 / 64 passed** |
+| Mastered audio | Four styles rendered, `ebur128=peak=true` | Targets hit; **-1.5 dBTP**; 0 clipped samples |
 | Determinism | Covered by the unit suite | Byte-identical MIDI for same profile + style + seed |
 
 The quality sweep covers scale membership, duration, register lanes and maximum
 internal gap. All 320 compositions passed; the largest observed internal gap was
 1.45 beats, below the 1.5-beat ceiling. The silence sweep covers internal
 coverage for every profile/style pair at seeds 1, 7, 42 and 99, and all 64 cases
-passed after the performance pass.
+passed after the performance pass. Step 5 changed only the render path, so those
+MIDI results remain valid.
 
 No WAV, stem or other generated audio is committed. Heavy output stays under
 the ignored `out/` directory.
@@ -102,35 +131,26 @@ the ignored `out/` directory.
   auditioned. Step 8 must check that the lofi pocket does not smear section
   seams, and that support-only arcs do not make the accompaniment feel
   detached from the lead.
+- Step 5's corrected masters are 0.4-2.2 LU quieter than the old files. Compare
+  them at matched loudness, not by raw level, so the extra dynamics are not
+  mistaken for weakness.
+- Style EQ, bus compression, and the MuseScore_General A/B are still unadopted
+  because they need a listening decision.
 
-## Rendering dependency (Step 8 blocker)
+## Rendering dependencies (Step 8 ready)
 
-`fluidsynth.exe` is not installed and there is no local GeneralUser GS SF2.
-Only `pretty_midi`'s fallback `TimGm6mb.sf2` is available, which is not the
-intended preview sound.
+FluidSynth 2.6.1, ffmpeg 8.1.1, and GeneralUser GS v1.471 are installed
+locally. None of these assets is committed: a fresh checkout must run
+`python tools/setup.py` for the verified soundfont and install FluidSynth and
+ffmpeg separately. The renderer checks `SYMPHONY_SOUNDFONT` /
+`SYMPHONY_FLUIDSYNTH`, local `tools/`, then `PATH`.
 
-To unblock Step 8:
-
-1. Install FluidSynth 2.3+ and expose it through `SYMPHONY_FLUIDSYNTH` or
-   `PATH`.
-2. Provide a verified redistributable GeneralUser GS SF2 and point
-   `SYMPHONY_SOUNDFONT` at it.
-3. Render the six preview combinations, then complete the listening pass.
-4. Record the soundfont provenance and license in `THIRD_PARTY_NOTICES.md`.
-
-Do not commit the soundfont or rendered audio.
+Step 8 can render on this machine. Do not commit the soundfont, native tools,
+or rendered audio.
 
 ## Remaining work
 
-### Step 5 — soundfont and mastering research (next)
-
-- Evaluate verified redistributable soundfont options; keep GeneralUser GS
-  unless a clearly better, licensed option is found.
-- Audit the mastering chain (EQ, compression, reverb, loudness) against the
-  four style identities.
-- Document any adopted asset or chain change, including licensing.
-
-### Step 6 — curated progressions
+### Step 6 — curated progressions (next)
 
 - Replace or extend generic progression pools with curated, style-specific
   progressions that preserve each style's identity.
@@ -152,8 +172,11 @@ Do not commit the soundfont or rendered audio.
 - Render all requested profile/style combinations with the verified soundfont.
 - Complete the before/after scorecard, listening notes, strengths/weaknesses,
   and final contrast matrix.
+- Audition the deferred mastering items: lofi low-pass/low shelf, cinematic and
+  contemplative air shelves, anthem glue compression, and the
+  MuseScore_General A/B.
 - Update `README.md` for `contemplative`, the Step 3 space policy, the Step 4
-  performance pass, scoring, and `--best-of`.
+  performance pass, the Step 5 mastering chain, scoring, and `--best-of`.
 - Re-run the full unit suite plus both validation sweeps.
 - Commit the final documentation and previews metadata (never the audio).
 
@@ -167,5 +190,5 @@ git pull --ff-only
 .\.venv\Scripts\python.exe tools\validate_silence.py
 ```
 
-Then start Step 5 from `105212c`. Keep one commit per completed step. If a step
+Then start Step 6 from `8d5069f`. Keep one commit per completed step. If a step
 fails three attempts, record the failure here and move on rather than looping.
