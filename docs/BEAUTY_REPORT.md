@@ -1,8 +1,8 @@
 # Musical beauty upgrade — checkpoint
 
-Status: **Steps 1-6 complete. Steps 7-8 remain.**
+Status: **Steps 1-7 complete. Step 8 remains.**
 Branch: `main`  
-HEAD at checkpoint: `e0598d3`  
+HEAD at checkpoint: `0bb6539`  
 Last verified: 2026-10-27
 
 This document is the continuation point for the eight-step musical-beauty
@@ -19,6 +19,7 @@ deferred, and the exact next move.
 | 4 | Ensemble pocket, phrase dynamics, metric accents | `105212c` |
 | 5 | Mastering audit, measured loudness, soundfont decision | `8d5069f` |
 | 6 | Curated style-specific progressions and framing deal | `e0598d3` |
+| 7 | Deterministic scoring and `--best-of` selection | `0bb6539` |
 
 ### Step 3 details
 
@@ -123,23 +124,68 @@ deferred, and the exact next move.
   distinctness, diatonic safety, cadence support, frame restriction,
   deterministic style-qualified sampling).
 
+### Step 7 details
+
+- **Six weighted dimensions.** `symphony/score.py` measures phrase grammar
+  (0.32), voice leading (0.20), density balance (0.18), rest placement (0.10),
+  range shape (0.10) and repetition (0.10). Each dimension is clamped to 0–1;
+  the weighted total is reported on a 0–100 scale. The scorer only reads the
+  form, variation plan and rendered MIDI, so it adds no random source and does
+  not change default composition output.
+- **Phrase grammar** reuses `build_lead_line`, `plan_pitches` and
+  `melody_quality`, rewarding stepwise motion, degree steps, prepared and
+  recovered leaps, strong-beat chord tones and clean phrases.
+- **Voice leading** groups simultaneous piano attacks into chords and measures
+  rank-to-rank movement plus upper-voice spacing.
+- **Density balance** checks that active parts actually sound, keeps the lead at
+  a support-relative share, and correlates per-section note density with the
+  dramatic intensity arc.
+- **Rest placement** verifies cadence bars stay populated, support rests land in
+  their intended phrase windows, rest positions vary, and the lead keeps some
+  air.
+- **Range shape** scores section spans, the global melodic span, and whether the
+  highest lead pitch occurs in the climax.
+- **Repetition** balances hook recurrence against progression, rhythm and
+  adjacent-pitch variety rather than rewarding novelty unconditionally.
+- **`--best-of N`.** The CLI builds N consecutive variations with no
+  batch-diversity retry, scores each, and selects the highest unrounded total.
+  Ties keep the lower candidate index. Because candidates use plain consecutive
+  seeds, re-running with the winner's seed reproduces its MIDI byte for byte.
+  Only the winner is written and rendered. `--best-of` and `--variations` are
+  mutually exclusive.
+- **Metadata.** The CLI always adds `score` to the timeline; `--best-of` also
+  adds `selection` with the candidate count, winning index and winning seed.
+  `score.py` can be run standalone with text or `--json` output.
+- **Calibration audit.** Across 80 compositions (4 profiles × 4 styles × 5
+  seeds), overall scores ranged 85.07–95.70 (mean 92.03, standard deviation
+  2.35). Voice leading had the widest component spread (0.424–0.912), followed
+  by range shape (0.650–1.000) and rest placement (0.703–0.999). No dimension
+  was constant across the catalogue, so the weights were kept as designed.
+- New coverage lives in `tests/test_score.py` (component bounds and weights,
+  score determinism, distinct variation scores, consecutive candidate seeds,
+  tie-breaks, exact winner rebuild, argument exclusivity and timeline metadata).
+
 ## Verification at this checkpoint
 
 | Check | Command | Result |
 |---|---|---|
-| Unit suite | `.\.venv\Scripts\python.exe -m unittest discover -s tests -q` | **52 passed** |
+| Unit suite | `.\.venv\Scripts\python.exe -m unittest discover -s tests -q` | **61 passed** |
 | Quality sweep | `.\.venv\Scripts\python.exe tools\validate_quality.py` | **320 / 320 passed** |
 | Silence sweep | `.\.venv\Scripts\python.exe tools\validate_silence.py` | **64 / 64 passed** |
 | Contrast gate | `python -m symphony.contrast <bat> <fd> <ripgrep> --style anthem` | All pairs pass; minimum **6/8** |
 | Contrast gate | `python -m symphony.contrast <bat> <fd> <ripgrep> --style cinematic` | All pairs pass; minimum **4/8** |
-| Mastered audio | Four styles rendered, `ebur128=peak=true` | Targets hit; **-1.5 dBTP**; 0 clipped samples |
-| Determinism | Covered by the unit suite | Byte-identical MIDI for same profile + style + seed |
+| Score audit | 80 compositions, 4 profiles × 4 styles × 5 seeds | **85.07–95.70**; mean 92.03; stdev 2.35 |
+| Mastered audio | Four styles rendered at Step 5, `ebur128=peak=true` | Targets hit; **-1.5 dBTP**; 0 clipped samples |
+| Determinism | Covered by the unit suite | Byte-identical MIDI for same profile + style + seed; best-of winner rebuilds exactly |
 
 The quality sweep covers scale membership, duration, register lanes and maximum
 internal gap. All 320 compositions passed; the largest observed internal gap was
 1.45 beats, below the 1.5-beat ceiling. The silence sweep covers internal
 coverage for every profile/style pair at seeds 1, 7, 42 and 99, and all 64 cases
-passed. Both sweeps were re-run after the Step 6 pool and hook changes.
+passed. Both sweeps were re-run after the Step 6 pool and hook changes and again
+after Step 7. Step 7 adds read-only scoring and a selection path; it does not
+change the default MIDI output or the render path, so the Step 5 mastering
+measurements remain valid.
 
 Contrast-gate distances for the three cached Rust repositories:
 
@@ -151,8 +197,9 @@ Contrast-gate distances for the three cached Rust repositories:
 
 The cinematic bat/ripgrep pair sits exactly on the 4/8 threshold. Their shared
 dimensions are mode, meter, signature and a two-BPM tempo difference; key,
-progressions, rhythms and hook contour all differ. This is the weakest pair and
-is the first thing to re-check if Step 7 changes variation selection.
+progressions, rhythms and hook contour all differ. This is the weakest pair.
+Step 7 did not change default variation selection and the gate still measures
+4/8, but Step 8 should re-check it after any mastering or arrangement change.
 
 No WAV, stem or other generated audio is committed. Heavy output stays under
 the ignored `out/` directory.
@@ -166,10 +213,18 @@ the ignored `out/` directory.
   owned by an explicitly rested part are skipped. Hook contours are still chosen
   from the repository fingerprint and remain stable across styles.
 - Curated progressions stay inside the repository's mode, so the hook's scale
-  and cadence behavior does not change. The Step 6 contrast gate passes on all
-  three cached repositories in both anthem and cinematic.
-- The final contrast matrix and before/after beauty scores are **not** claimed
-  here. They are Step 8 deliverables and require rendered audio plus listening.
+  and cadence behavior does not change. The contrast gate passes on all three
+  cached repositories in both anthem and cinematic.
+- Step 7 scoring is read-only and deterministic. The default compose path still
+  produces the same MIDI for a given profile, style and variation index; the
+  only added output is score metadata.
+- `--best-of` does not use the batch-diversity retry. Every candidate is a plain
+  consecutive seed, and the winner's MIDI rebuilds byte for byte with
+  `--seed <winner>`. Equal scores keep the lower candidate index.
+- The Step 7 numeric score is a comparative selector, not the final beauty
+  judgment. The final contrast matrix and before/after listening scorecard are
+  **not** claimed here; they are Step 8 deliverables and require rendered audio
+  plus listening.
 
 ## Known risks to audit in Step 8
 
@@ -195,6 +250,12 @@ the ignored `out/` directory.
 - The cinematic bat/ripgrep contrast pair is exactly at the 4/8 minimum. Any
   later change to keys, tempo mapping or progressions can drop it below the
   gate.
+- The Step 7 score is a relative selector. Its catalogue mean is high (92.03)
+  and voice leading supplies much of the candidate spread, so Step 8 should
+  confirm by ear that `--best-of` winners are actually the stronger versions,
+  not just the ones with smoother piano voicings.
+- `--best-of N` composes and scores all N candidates before choosing. It is a
+  quality tool, not a speed optimization; keep N modest for routine renders.
 
 ## Rendering dependencies (Step 8 ready)
 
@@ -209,16 +270,7 @@ or rendered audio.
 
 ## Remaining work
 
-### Step 7 — scoring and best-of selection (next)
-
-- Add `score.py` with objective musical-quality metrics (phrase grammar, voice
-  leading, density balance, rest placement, range, repetition).
-- Add CLI `--best-of N` to render/compose N deterministic variations and select
-  the highest score.
-- Ensure the selected variation is reproducible and the score is emitted in the
-  timeline/metadata.
-
-### Step 8 — renders, report, contrast gate
+### Step 8 — renders, report, contrast gate (next)
 
 - Render all requested profile/style combinations with the verified soundfont.
 - Complete the before/after scorecard, listening notes, strengths/weaknesses,
@@ -226,8 +278,8 @@ or rendered audio.
 - Audition the deferred mastering items: lofi low-pass/low shelf, cinematic and
   contemplative air shelves, anthem glue compression, and the
   MuseScore_General A/B.
-- Update `README.md` for scoring, `--best-of`, and any Step 8 mastering
-  changes.
+- Update `README.md` for any Step 8 mastering changes; scoring and `--best-of`
+  are already documented.
 - Re-run the full unit suite plus both validation sweeps.
 - Commit the final documentation and previews metadata (never the audio).
 
@@ -241,5 +293,5 @@ git pull --ff-only
 .\.venv\Scripts\python.exe tools\validate_silence.py
 ```
 
-Then start Step 7 from `e0598d3`. Keep one commit per completed step. If a step
+Then start Step 8 from `0bb6539`. Keep one commit per completed step. If a step
 fails three attempts, record the failure here and move on rather than looping.
