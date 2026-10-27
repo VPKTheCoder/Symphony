@@ -65,6 +65,13 @@ class MelodyGrammarTests(unittest.TestCase):
                     self.assertLessEqual(abs(intervals[index + 1]), 1)
                     self.assertLess(intervals[index + 1] * intervals[index], 0)
 
+    def test_hook_family_uses_more_than_one_fingerprint_byte(self) -> None:
+        # Regression: these two identities collided when only digest[9] chose
+        # the hook family.  The two-byte selector gives them different contours.
+        left = build_hook("synthetic-repo-1", ("lib", "main"))
+        right = build_hook("synthetic-repo-4", ("lib", "main"))
+        self.assertNotEqual(left.degrees, right.degrees)
+
     def test_hook_identity_survives_style_change(self) -> None:
         profile = load_profile(ROOT / "profiles" / "fd.json")
         plans = [

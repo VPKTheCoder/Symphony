@@ -261,16 +261,78 @@ MODE_FAMILIES: dict[str, tuple[str, ...]] = {
     "minorish": ("major", "lydian", "mixolydian", "dorian", "minor", "phrygian"),
 }
 
-# Curated four-chord progressions shared by the three style pools. Each style
-# owns this map explicitly so later changes can specialize its harmony.
-PROGRESSION_POOLS: dict[str, tuple[tuple[int, ...], ...]] = {
-    "major": ((1, 5, 6, 4), (6, 4, 1, 5), (1, 6, 4, 5), (4, 1, 5, 6)),
-    "lydian": ((1, 2, 6, 5), (1, 5, 2, 6), (6, 2, 1, 5), (2, 5, 1, 6)),
-    "dorian": ((1, 4, 1, 7), (1, 7, 4, 5), (4, 1, 5, 7), (4, 5, 1, 7)),
-    "mixolydian": ((1, 7, 4, 1), (1, 4, 5, 7), (4, 1, 7, 5), (4, 5, 1, 7)),
-    "minor": ((1, 6, 3, 7), (1, 4, 7, 3), (6, 3, 7, 1), (4, 1, 6, 7)),
-    "phrygian": ((1, 2, 6, 7), (1, 7, 6, 2), (6, 7, 1, 2), (2, 1, 7, 6)),
-}
+# Curated harmony for each style.  Progressions are four scale degrees long so
+# one loop covers a four-bar melody phrase; every degree is diatonic, so the
+# melody engine's strong-beat chord tones always stay inside the repository's
+# mode.  The pools are intentionally different per style: cinematic uses broad
+# arcs, lofi uses jazz turnarounds, anthem favours direct cadences, and
+# contemplative repeats a small cell.
+ProgressionPool = tuple[tuple[int, ...], ...]
+
+
+def _progression_pools(
+    *,
+    major: ProgressionPool,
+    lydian: ProgressionPool,
+    dorian: ProgressionPool,
+    mixolydian: ProgressionPool,
+    minor: ProgressionPool,
+    phrygian: ProgressionPool,
+) -> dict[str, ProgressionPool]:
+    return {
+        "major": major,
+        "lydian": lydian,
+        "dorian": dorian,
+        "mixolydian": mixolydian,
+        "minor": minor,
+        "phrygian": phrygian,
+    }
+
+
+CINEMATIC_PROGRESSIONS = _progression_pools(
+    # Wide I-V-vi-IV arcs and plagal returns; IV or vi closes most loops so
+    # the tonic can still sound under the answer phrase.
+    major=((1, 5, 6, 4), (6, 4, 1, 5), (1, 3, 4, 6), (4, 5, 3, 1), (1, 4, 6, 1)),
+    lydian=((1, 2, 1, 5), (1, 2, 6, 1), (6, 2, 1, 5), (1, 5, 2, 6), (2, 5, 6, 1)),
+    dorian=((1, 4, 1, 7), (1, 7, 4, 1), (1, 3, 4, 1), (4, 1, 7, 1), (1, 4, 3, 1)),
+    mixolydian=((1, 7, 4, 1), (1, 4, 7, 1), (6, 4, 1, 7), (4, 1, 7, 1), (1, 4, 6, 1)),
+    minor=((1, 6, 3, 7), (1, 4, 6, 1), (6, 7, 1, 1), (1, 3, 6, 4), (1, 7, 6, 1)),
+    phrygian=((1, 2, 6, 1), (1, 6, 2, 1), (1, 7, 6, 1), (6, 2, 1, 1), (1, 2, 7, 1)),
+)
+
+LOFI_PROGRESSIONS = _progression_pools(
+    # ii-V-I and descending-fifths turnarounds, with the seventh/ninth colours
+    # supplied by the style.  Some loops end on V or ii, as a loop should.
+    major=((2, 5, 1, 6), (1, 6, 2, 5), (6, 2, 5, 1), (1, 3, 4, 1), (4, 3, 2, 1)),
+    lydian=((1, 2, 6, 2), (1, 6, 2, 5), (6, 2, 5, 1), (2, 5, 1, 6), (1, 2, 3, 6)),
+    dorian=((1, 4, 7, 4), (1, 7, 4, 1), (4, 1, 7, 1), (1, 3, 7, 4), (1, 2, 4, 1)),
+    mixolydian=((1, 7, 4, 1), (1, 4, 1, 1), (6, 4, 1, 1), (4, 1, 5, 7), (1, 5, 4, 1)),
+    minor=((1, 6, 3, 1), (1, 4, 7, 1), (6, 3, 7, 1), (1, 6, 4, 1), (4, 1, 6, 7)),
+    phrygian=((1, 2, 1, 7), (1, 6, 2, 1), (1, 7, 6, 1), (6, 2, 1, 1), (1, 2, 6, 2)),
+)
+
+ANTHEM_PROGRESSIONS = _progression_pools(
+    # Direct, singable cadences.  Nearly every loop closes on the tonic chord
+    # or its relative minor so the hook's answer can land on the tonic.
+    major=((1, 5, 6, 4), (4, 1, 5, 6), (6, 4, 1, 1), (1, 4, 5, 1), (4, 5, 6, 1)),
+    lydian=((1, 2, 5, 1), (1, 5, 2, 1), (1, 2, 6, 1), (6, 2, 5, 1), (1, 5, 6, 1)),
+    dorian=((1, 4, 1, 1), (1, 7, 4, 1), (3, 7, 1, 1), (1, 4, 7, 1), (4, 1, 7, 1)),
+    mixolydian=((1, 7, 4, 1), (1, 4, 7, 1), (4, 1, 7, 1), (1, 5, 4, 1), (6, 4, 1, 1)),
+    minor=((1, 6, 3, 7), (6, 7, 1, 1), (1, 7, 6, 1), (1, 4, 6, 1), (1, 3, 7, 1)),
+    phrygian=((1, 2, 1, 1), (1, 6, 2, 1), (6, 2, 1, 1), (1, 7, 6, 1), (1, 2, 7, 1)),
+)
+
+CONTEMPLATIVE_PROGRESSIONS = _progression_pools(
+    # Two-bar chords (style.content_bars_per_chord) make these eight-bar
+    # vamps.  They avoid dominant cadences and keep the second chord
+    # tonic-compatible so the answer phrase can still settle.
+    major=((1, 4, 1, 4), (1, 6, 4, 1), (1, 4, 6, 1), (6, 4, 1, 4), (1, 2, 4, 1)),
+    lydian=((1, 2, 1, 2), (1, 6, 2, 1), (1, 2, 6, 2), (6, 1, 2, 1), (2, 1, 6, 1)),
+    dorian=((1, 4, 1, 4), (1, 4, 7, 1), (4, 1, 7, 4), (1, 7, 1, 7), (1, 4, 3, 1)),
+    mixolydian=((1, 4, 1, 4), (1, 4, 7, 1), (1, 7, 1, 7), (6, 4, 1, 7), (4, 1, 7, 4)),
+    minor=((1, 6, 1, 6), (1, 6, 4, 1), (1, 4, 1, 4), (3, 6, 1, 7), (1, 7, 1, 7)),
+    phrygian=((1, 2, 1, 2), (1, 6, 1, 6), (1, 7, 1, 7), (1, 6, 2, 1), (6, 1, 2, 1)),
+)
 
 VOICING_STYLES = (
     VoicingStyle("wide", max_gap=14, low_shift=0, high_shift=0, target_shift=0),
@@ -350,6 +412,9 @@ class Style:
     eleventh_probability: float = 0.0
     mode_families: dict[str, tuple[str, ...]] | None = None
     progression_pools: dict[str, tuple[tuple[int, ...], ...]] | None = None
+    # Some progressions make better opening/closing vamps than others.  When a
+    # mode is listed here, intro and outro draw from these pool indices only.
+    frame_progression_indices: dict[str, tuple[int, ...]] | None = None
     piano_patterns: tuple[PianoPattern, ...] = ()
     voicing_styles: tuple[VoicingStyle, ...] = VOICING_STYLES
     build_shapes: tuple[BuildShape, ...] = BUILD_SHAPES
@@ -382,6 +447,18 @@ class Style:
 
     def active_limit_for(self, section: str) -> int:
         return self.climax_max_active_parts if section == "climax" else self.max_active_parts
+
+    def frame_indices_for(self, mode: str, pool_size: int) -> tuple[int, ...]:
+        """Pool entries eligible to frame intro and outro for this mode."""
+
+        indices = (self.frame_progression_indices or {}).get(mode)
+        if indices is None:
+            return tuple(range(pool_size))
+        if not indices:
+            raise ValueError(f"{self.name}/{mode}: frame pool cannot be empty.")
+        if any(not 0 <= index < pool_size for index in indices):
+            raise ValueError(f"{self.name}/{mode}: frame pool is out of range.")
+        return indices
 
     def validate_arrangement(self, matrix: ArrangementMatrix) -> None:
         """Reject matrices that would crowd the style or double its lead."""
@@ -431,7 +508,7 @@ CINEMATIC = Style(
     reverb_level=0.56,
     target_lufs=-16.0,
     mode_families=MODE_FAMILIES,
-    progression_pools=PROGRESSION_POOLS,
+    progression_pools=CINEMATIC_PROGRESSIONS,
     piano_patterns=CINEMATIC_PATTERNS,
     chord_colors=("triad", "seventh", "ninth"),
     ornament_pool=("none", "high_reply", "turn", "rising_fill"),
@@ -474,7 +551,7 @@ LOFI = Style(
     target_lufs=-16.0,
     eleventh_probability=0.12,
     mode_families=MODE_FAMILIES,
-    progression_pools=PROGRESSION_POOLS,
+    progression_pools=LOFI_PROGRESSIONS,
     piano_patterns=LOFI_PATTERNS,
     chord_colors=("seventh", "ninth", "eleventh"),
     ornament_pool=("none", "pickup", "late_answer", "turn"),
@@ -522,7 +599,7 @@ ANTHEM = Style(
         "modal": MODE_FAMILIES["modal"],
         "minorish": MODE_FAMILIES["minorish"],
     },
-    progression_pools=PROGRESSION_POOLS,
+    progression_pools=ANTHEM_PROGRESSIONS,
     piano_patterns=ANTHEM_PATTERNS,
     chord_colors=("triad", "seventh", "ninth"),
     ornament_pool=("none", "pickup", "rising_fill", "octave_answer"),
@@ -562,7 +639,10 @@ CONTEMPLATIVE = Style(
     reverb_level=0.60,
     target_lufs=-17.5,
     mode_families=MODE_FAMILIES,
-    progression_pools=PROGRESSION_POOLS,
+    progression_pools=CONTEMPLATIVE_PROGRESSIONS,
+    # The minor i-VI vamps are lovely inside the form but leave the solo line
+    # too many small skips at the very start and end.  Frame with i-IV or i-VII.
+    frame_progression_indices={"minor": (2, 4)},
     piano_patterns=CONTEMPLATIVE_PATTERNS,
     chord_colors=("triad", "seventh", "ninth"),
     ornament_pool=("none", "high_reply", "late_answer"),

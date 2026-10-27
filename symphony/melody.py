@@ -149,7 +149,10 @@ def build_hook(identity: str, module_names: tuple[str, ...]) -> Hook:
     material = (identity + "|" + "|".join(module_names) + "|phrase-hook").encode("utf-8")
     digest = hashlib.sha256(material).digest()
     beats, durations = _HOOK_RHYTHMS[digest[8] % len(_HOOK_RHYTHMS)]
-    degrees = _HOOK_FAMILIES[digest[9] % len(_HOOK_FAMILIES)]
+    # Two digest bytes keep closely related clean repositories from sharing a
+    # contour just because their first selection byte lands on a multiple of 5.
+    family = int.from_bytes(digest[9:11], "big") % len(_HOOK_FAMILIES)
+    degrees = _HOOK_FAMILIES[family]
     hook_id = hashlib.sha256(
         (identity + "|" + "|".join(module_names) + "|hook-id").encode("utf-8")
     ).hexdigest()[:12]

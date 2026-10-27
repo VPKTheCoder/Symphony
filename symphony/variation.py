@@ -120,6 +120,29 @@ def mode_family_for(profile: Profile, style: Style) -> str:
     return "minorish"
 
 
+def _progression_pool_for(
+    style: Style, mode: str
+) -> tuple[tuple[int, ...], ...]:
+    """Return a style's validated four-bar pool for one mode."""
+
+    pool = (style.progression_pools or {}).get(mode, ())
+    if len(pool) < 4:
+        raise ValueError(f"Style {style.name!r} needs four progressions for {mode}.")
+    if len(set(pool)) != len(pool):
+        raise ValueError(f"Style {style.name!r} has duplicate progressions for {mode}.")
+    for progression in pool:
+        if len(progression) != 4:
+            raise ValueError(
+                f"{style.name}/{mode}: progression {progression} must have four chords."
+            )
+        if any(degree < 1 or degree > 7 for degree in progression):
+            raise ValueError(
+                f"{style.name}/{mode}: progression {progression} must use "
+                "diatonic degrees 1-7."
+            )
+    return pool
+
+
 def sample_variation_plan(
     profile: Profile,
     style: Style,
@@ -167,16 +190,25 @@ def sample_variation_plan(
         meter = (7, 8)
     key = Key(tonic_pc=tonic_pc, mode=mode)
 
-    progression_pool = (style.progression_pools or {}).get(mode, ())
-    if len(progression_pool) < 4:
-        raise ValueError(f"Style {style.name!r} needs four progressions for {mode}.")
-    selected_progressions = []
-    for section in SECTION_NAMES:
-        index = rng.randrange(len(progression_pool))
-        selected_progressions.append(
-            (section, f"{mode}_p{index + 1}", progression_pool[index])
+    progression_pool = _progression_pool_for(style, mode)
+    pool_indices = list(range(len(progression_pool)))
+    frame_indices = style.frame_indices_for(mode, len(progression_pool))
+    intro_index = rng.choice(frame_indices)
+    content_indices = [index for index in pool_indices if index != intro_index]
+    rng.shuffle(content_indices)
+    chosen_indices = {"intro": intro_index, "outro": intro_index}
+    for offset, section in enumerate(
+        ("theme", "development", "climax", "resolution")
+    ):
+        chosen_indices[section] = content_indices[offset % len(content_indices)]
+    progressions = tuple(
+        (
+            section,
+            f"{style.name}_{mode}_p{chosen_indices[section] + 1}",
+            progression_pool[chosen_indices[section]],
         )
-    progressions = tuple(selected_progressions)
+        for section in SECTION_NAMES
+    )
 
     if len(style.piano_patterns) < 6:
         raise ValueError(f"Style {style.name!r} needs at least six piano patterns.")

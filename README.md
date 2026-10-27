@@ -91,7 +91,7 @@ Fast MIDI-only pass:
 python -m symphony.compose --profile profiles/large.json --style lofi --seed 7 --out out/sketch --no-render
 ```
 
-Styles: `cinematic`, `lofi`, `anthem`.
+Styles: `cinematic`, `lofi`, `anthem`, `contemplative`.
 
 ## Stage 1: Rust analyzer
 
@@ -195,8 +195,19 @@ the end. Profile-based composition also writes a timeline and guide.
 - `--seed` is the variation index (default `0`). The base seed comes from the
   repository fingerprint and style, so the same repo/style/index reproduces a
   byte-identical MIDI file.
-- Per-mode functional progression pools (for example I–V–vi–IV in major and
-  i–VI–III–VII in minor).
+- Every style owns five curated four-bar progressions for each supported mode.
+  IDs are style-qualified (`{style}_{mode}_p{n}`), so a plan names exactly which
+  style harmony it uses.
+- Cinematic favours wide I–V–vi–IV arcs and plagal returns; lo-fi uses ii–V–I
+  and descending-fifths turnarounds; anthem uses direct, singable cadences;
+  contemplative holds two-bar vamps built from small tonic-compatible cells.
+- Intro and outro share one framing progression. The four content sections deal
+  the other four pool entries in seeded order before any reuse, so every plan
+  hears all five. Contemplative minor restricts the frame to i–IV or i–VII
+  because the i–VI frame made the opening/closing solo skip too often.
+- At least three of five progressions keep the tonic available under the answer
+  phrase's final bar, accounting for styles that hold each chord for two bars.
+  Progressions are diatonic and validated at runtime before sampling.
 - Chords are built from curated scale tones, with style-dependent 7ths, 9ths
   and added 9ths. Pitched notes are checked against the active scale; the
   sprawling signature deliberately transposes the climax up a whole step.
@@ -211,6 +222,8 @@ the end. Profile-based composition also writes a timeline and guide.
   lower register.
 - Anthem: bright major-family harmony, driving syncopated chord accents,
   punchy articulation, short pedal and octave doubling in the climax.
+- Contemplative: slow two-bar vamps, sparse high replies, soft ostinato
+  accompaniment and a long ring-out.
 - Humanization: per-note timing jitter, chord rolls, velocity accents and
   section/phrase dynamics. Sustain pedal is generated as CC64.
 - Same-pitch overlaps are clipped so repeated notes retrigger cleanly.
