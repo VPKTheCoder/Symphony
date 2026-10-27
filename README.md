@@ -171,8 +171,10 @@ python -m symphony.compose `
 This writes `out/fd-anthem.profile.json`, the MIDI/WAV/MP3, and
 `out/fd-anthem.timeline.json`. The timeline records each section's start and
 end time, its module mapping, and timestamps for complexity, unsafe, TODO and
-coverage-cadence moments. Every compose run prints a listening-guide table at
-the end. Profile-based composition also writes a timeline and guide.
+coverage-cadence moments. The compose CLI also records the six-dimension score;
+`--best-of` adds a `selection` block. Every compose run prints a
+listening-guide table at the end. Profile-based composition also writes a
+timeline and guide.
 
 ## What is implemented
 
@@ -310,7 +312,8 @@ belongs to whoever generates it; use it however you like.
 A single `random.Random(seed)` is created in `build_composition()` and passed
 explicitly to the form planner and instrument renderers. Instruments share the
 plan for structural decisions. There is no global RNG.
-The same profile + style + seed produces a byte-identical MIDI file.
+The same profile + style + seed produces a byte-identical MIDI file. Scoring is
+read-only and deterministic as well.
 
 ## Variations
 
@@ -348,6 +351,46 @@ Check note coverage (all profile/style pairs, seeds 1, 7, 42 and 99):
 python tools/validate_silence.py
 ```
 
+## Scoring and best-of
+
+`symphony/score.py` grades a composition without sampling any random numbers.
+Six dimensions are measured from the form, variation plan and rendered MIDI:
+
+| Dimension | Weight | What it rewards |
+|---|---:|---|
+| Phrase grammar | 0.32 | stepwise lead motion, prepared and recovered leaps, strong-beat chord tones, clean phrases |
+| Voice leading | 0.20 | smooth, compact movement between successive piano chord attacks |
+| Density balance | 0.18 | active parts sounding, lead/support balance, density following the intensity arc |
+| Rest placement | 0.10 | populated cadence bars, support rests inside phrases, some lead air |
+| Range shape | 0.10 | singable section spans, a useful global span, an apex in the climax |
+| Repetition | 0.10 | hook recurrence balanced against progression, rhythm and adjacent-pitch variety |
+
+The weighted total is reported on a 0-100 scale. It is a comparative selector,
+not an absolute grade; the same profile + style + variation index always returns
+the same score. Score one composition without writing files:
+
+```powershell
+python -m symphony.score --profile profiles/small.json --style cinematic --seed 3
+python -m symphony.score --profile profiles/small.json --style cinematic --seed 3 --json
+```
+
+Compose several consecutive variations and write only the highest-scoring one:
+
+```powershell
+python -m symphony.compose `
+  --profile profiles/fd.json `
+  --style cinematic `
+  --seed 0 `
+  --best-of 4 `
+  --out out/fd-cinematic-best
+```
+
+`--best-of N` and `--variations N` are mutually exclusive. Candidates use
+consecutive seeds and are built without the batch-diversity retry, so the winner
+can be reproduced exactly with `--seed <winner>`. The winning timeline records
+the full score and a `selection` block containing the candidate index, candidate
+count and selected seed. Only the winner is written and rendered.
+
 ## Metric mapping
 
 | Input | Musical decision |
@@ -382,6 +425,7 @@ symphony/
     violin.py        motif lead and development
     guitar.py        style-specific comping and lead hooks
   compose.py         CLI and composition assembly
+  score.py           deterministic six-dimension quality scoring
   render.py          FluidSynth + ffmpeg pipeline
 profiles/
   small.json         healthy 5-module profile

@@ -21,6 +21,7 @@ from symphony.instruments.violin import render_violin
 from symphony.profile import Profile, ProfileError, load_profile
 from symphony.analyze import analyze_repository, format_explanation, format_summary, resolve_repository, write_profile
 from symphony.render import RenderError, render_track
+from symphony.score import ScoreReport, score_composition
 from symphony.styles import STYLES, Style, get_style
 from symphony.variation import VariationPlan, sample_variation_plan
 from symphony.timeline import build_timeline, format_listening_guide, write_timeline
@@ -41,6 +42,15 @@ class Composition:
     seed: int
     variation_attempt: int
     midi: pretty_midi.PrettyMIDI
+
+
+@dataclass(frozen=True)
+class ScoredCandidate:
+    """One ``--best-of`` candidate, kept in candidate order."""
+
+    index: int
+    composition: Composition
+    score: ScoreReport
 
 
 def build_composition(
@@ -119,6 +129,44 @@ def build_composition(
         variation_attempt=attempt,
         midi=midi,
     )
+
+
+def build_scored_candidates(
+    profile: Profile,
+    style: Style,
+    seed: int,
+    count: int,
+) -> tuple[ScoredCandidate, ...]:
+    """Build consecutive deterministic variations and score each one.
+
+    Candidates are built without the batch-diversity retry used by
+    ``--variations``.  That keeps every candidate reproducible by passing its
+    own seed to a plain compose run, which is what makes ``--best-of`` stable.
+    """
+
+    if count < 1:
+        raise ValueError("--best-of must be at least 1.")
+    candidates = []
+    for index in range(count):
+        composition = build_composition(profile, style, seed + index)
+        candidates.append(
+            ScoredCandidate(
+                index=index,
+                composition=composition,
+                score=score_composition(composition),
+            )
+        )
+    return tuple(candidates)
+
+
+def select_best_candidate(
+    candidates: Sequence[ScoredCandidate],
+) -> ScoredCandidate:
+    """Highest score wins; equal scores keep the lower variation index."""
+
+    if not candidates:
+        raise ValueError("Cannot select a best variation from an empty batch.")
+    return max(candidates, key=lambda item: (item.score.overall, -item.index))
 
 
 def write_midi(composition: Composition, path: Path) -> Path:
@@ -211,7 +259,11 @@ def _format_duration(seconds: float) -> str:
     return f"{minutes}:{rest:02d}"
 
 
-def _summary(composition: Composition, midi_path: Path) -> str:
+def _summary(
+    composition: Composition,
+    midi_path: Path,
+    score: ScoreReport | None = None,
+) -> str:
     form = composition.form
     section_bits = " | ".join(
         f"{section.name} {section.bars}" for section in form.sections
@@ -221,6 +273,7 @@ def _summary(composition: Composition, midi_path: Path) -> str:
         if section.modules:
             names = ", ".join(module.name for module in section.modules)
             map_bits.append(f"{section.name}: {names}")
+    score_line = f"  score: {score.overall:.2f} / 100\n" if score else ""
     return (
         f"{composition.profile.name} / {composition.style.name}\n"
         f"  key {form.key.label}  |  {form.tempo} BPM  |  "
@@ -229,6 +282,7 @@ def _summary(composition: Composition, midi_path: Path) -> str:
         f"  call path: {'; '.join(map_bits)}\n"
         f"  plan (variation index {composition.seed}, resample {composition.variation_attempt}): "
         f"{composition.variation_plan.summary()}\n"
+        f"{score_line}"
         f"  repo fingerprint: {profile_fingerprint(composition.profile)}\n"
         f"  midi: {midi_path}"
     )
@@ -256,11 +310,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Musical style.",
     )
     parser.add_argument("--seed", type=int, default=0, help="Variation index (default: 0); the base seed is derived from repository identity.")
-    parser.add_argument(
+    batch_group = parser.add_mutually_exclusive_group()
+    batch_group.add_argument(
         "--variations",
         type=int,
         default=1,
         help="Generate a distinct batch with consecutive seeds (default: 1).",
+    )
+    batch_group.add_argument(
+        "--best-of",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Compose N consecutive variations, score each, and write only the best.",
     )
     parser.add_argument(
         "--out",
@@ -304,27 +366,69 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise ValueError("--entry and --lcov are only used with --repo.")
             profile = load_profile(args.profile)
         style = get_style(args.style)
-        if args.variations < 1:
-            raise ValueError("--variations must be at least 1.")
-        accepted_fingerprints: list[tuple[str, ...]] = []
-        for index in range(args.variations):
-            seed = args.seed + index
-            composition = build_composition(
-                profile,
-                style,
-                seed,
-                avoid_fingerprints=accepted_fingerprints,
+        jobs: list[tuple[Composition, ScoreReport, dict | None]] = []
+        if args.best_of is not None:
+            candidates = build_scored_candidates(
+                profile, style, args.seed, args.best_of
             )
-            accepted_fingerprints.append(composition.variation_plan.fingerprint())
+            print(f"Best-of {args.best_of} candidates:")
+            for candidate in candidates:
+                form = candidate.composition.form
+                print(
+                    f"  {candidate.index + 1}. seed {candidate.composition.seed}  "
+                    f"score {candidate.score.overall:6.2f}  {form.key.label}  "
+                    f"{candidate.composition.variation_plan.signature_name}"
+                )
+            winner = select_best_candidate(candidates)
+            print(
+                f"Selected candidate {winner.index + 1} of {args.best_of} "
+                f"(seed {winner.composition.seed}) with "
+                f"{winner.score.overall:.2f} / 100."
+            )
+            jobs.append(
+                (
+                    winner.composition,
+                    winner.score,
+                    {
+                        "best_of": args.best_of,
+                        "candidate_index": winner.index,
+                        "candidate_seed": winner.composition.seed,
+                    },
+                )
+            )
+        else:
+            if args.variations < 1:
+                raise ValueError("--variations must be at least 1.")
+            accepted_fingerprints: list[tuple[str, ...]] = []
+            for index in range(args.variations):
+                seed = args.seed + index
+                composition = build_composition(
+                    profile,
+                    style,
+                    seed,
+                    avoid_fingerprints=accepted_fingerprints,
+                )
+                accepted_fingerprints.append(composition.variation_plan.fingerprint())
+                jobs.append((composition, score_composition(composition), None))
+
+        for index, (composition, report, selection) in enumerate(jobs):
             prefix = (
                 out_prefix
-                if args.variations == 1
+                if len(jobs) == 1
                 else out_prefix.with_name(f"{out_prefix.name}_v{index + 1}")
             )
             midi_path = write_midi(composition, prefix.with_suffix(".mid"))
-            print(_summary(composition, midi_path))
-            timeline = build_timeline(composition)
-            timeline_path = write_timeline(composition, prefix)
+            print(_summary(composition, midi_path, report))
+            score_payload = report.to_dict()
+            timeline = build_timeline(
+                composition, score=score_payload, selection=selection
+            )
+            timeline_path = write_timeline(
+                composition,
+                prefix,
+                score=score_payload,
+                selection=selection,
+            )
             print(f"  timeline: {timeline_path}")
             if args.explain:
                 if analyzed_profile is None:

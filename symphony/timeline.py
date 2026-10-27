@@ -11,7 +11,12 @@ def _clock(seconds: float) -> str:
     return f"{minutes:02d}:{rest:02d}"
 
 
-def build_timeline(composition) -> dict:
+def build_timeline(
+    composition,
+    *,
+    score: dict | None = None,
+    selection: dict | None = None,
+) -> dict:
     form = composition.form
     profile = composition.profile
     module_lookup = profile.modules_by_name
@@ -100,7 +105,7 @@ def build_timeline(composition) -> dict:
             "modules": modules,
             "moments": moments,
         })
-    return {
+    timeline = {
         "profile": profile.name,
         "repo_fingerprint": composition.variation_plan.repo_fingerprint,
         "style": composition.style.name,
@@ -117,13 +122,25 @@ def build_timeline(composition) -> dict:
         "sections": sections,
         "listening_guide": guide,
     }
+    if score is not None:
+        timeline["score"] = score
+    if selection is not None:
+        timeline["selection"] = selection
+    return timeline
 
 
-def write_timeline(composition, output_prefix: str | Path) -> Path:
+def write_timeline(
+    composition,
+    output_prefix: str | Path,
+    *,
+    score: dict | None = None,
+    selection: dict | None = None,
+) -> Path:
     prefix = Path(output_prefix)
     path = prefix.with_name(prefix.name + ".timeline.json")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(build_timeline(composition), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    timeline = build_timeline(composition, score=score, selection=selection)
+    path.write_text(json.dumps(timeline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
 
 
