@@ -1,8 +1,8 @@
 # Musical beauty upgrade — checkpoint
 
-Status: **Steps 1-5 complete. Steps 6-8 remain.**
+Status: **Steps 1-6 complete. Steps 7-8 remain.**
 Branch: `main`  
-HEAD at checkpoint: `8d5069f`  
+HEAD at checkpoint: `e0598d3`  
 Last verified: 2026-10-27
 
 This document is the continuation point for the eight-step musical-beauty
@@ -18,6 +18,7 @@ deferred, and the exact next move.
 | 3 | Arrangement space, phrase rests, density budgets | `6f02c82` |
 | 4 | Ensemble pocket, phrase dynamics, metric accents | `105212c` |
 | 5 | Mastering audit, measured loudness, soundfont decision | `8d5069f` |
+| 6 | Curated style-specific progressions and framing deal | `e0598d3` |
 
 ### Step 3 details
 
@@ -88,13 +89,49 @@ deferred, and the exact next move.
 - New coverage lives in `tests/test_render.py` (filter/target construction,
   measurement parsing, float synth output).
 
+### Step 6 details
+
+- **Style-owned harmony.** Each of the four styles now supplies five curated
+  four-bar progressions for all six modes (120 progressions total). IDs are
+  style-qualified (`{style}_{mode}_p{n}`), so a plan states exactly which
+  harmony it uses instead of referencing a shared generic pool.
+- **Identity per style.** Cinematic uses wide I–V–vi–IV arcs and plagal
+  returns; lofi uses ii–V–I and descending-fifths turnarounds; anthem uses
+  direct, singable cadences; contemplative holds two-bar vamps built from
+  tonic-compatible cells. The pools differ in emphasis rather than sharing one
+  generic set.
+- **Frame-first deal.** Intro and outro share one framing progression chosen
+  from the mode's frame set. Theme, development, climax and resolution deal the
+  remaining entries in seeded order before reuse, so every five-entry pool is
+  heard exactly once across the six sections.
+- **Validation.** Sampling rejects pools shorter than four entries, duplicate
+  loops, progressions that are not exactly four chords, and degrees outside
+  1–7. Built-in pools are required to hold five entries. Cadence support
+  requires at least three of five progressions to keep the tonic available
+  under the answer phrase's final bar; for two-bar-chord styles that bar maps
+  to the pool's second entry.
+- **Contemplative minor framing.** The pool's i–VI and III–VI vamps are kept
+  for content sections, but intro/outro draw only from indices 2 and 4
+  (i–IV and i–VII). Framing with the vamps made the opening and closing solo
+  skip too often; this fixes the regression without weakening the 0.70 melody
+  gate or deleting good harmony.
+- **Hook collision fixed.** Hook-family selection now uses two fingerprint
+  bytes (`digest[9:11]`) instead of one. The old selector gave bat, fd and
+  ripgrep the same contour because each selection byte was a multiple of five.
+  Hooks remain deterministic, style-invariant and repository-qualified.
+- New coverage lives in `tests/test_progressions.py` (pool shape and
+  distinctness, diatonic safety, cadence support, frame restriction,
+  deterministic style-qualified sampling).
+
 ## Verification at this checkpoint
 
 | Check | Command | Result |
 |---|---|---|
-| Unit suite | `.\.venv\Scripts\python.exe -m unittest discover -s tests -q` | **44 passed** |
+| Unit suite | `.\.venv\Scripts\python.exe -m unittest discover -s tests -q` | **52 passed** |
 | Quality sweep | `.\.venv\Scripts\python.exe tools\validate_quality.py` | **320 / 320 passed** |
 | Silence sweep | `.\.venv\Scripts\python.exe tools\validate_silence.py` | **64 / 64 passed** |
+| Contrast gate | `python -m symphony.contrast <bat> <fd> <ripgrep> --style anthem` | All pairs pass; minimum **6/8** |
+| Contrast gate | `python -m symphony.contrast <bat> <fd> <ripgrep> --style cinematic` | All pairs pass; minimum **4/8** |
 | Mastered audio | Four styles rendered, `ebur128=peak=true` | Targets hit; **-1.5 dBTP**; 0 clipped samples |
 | Determinism | Covered by the unit suite | Byte-identical MIDI for same profile + style + seed |
 
@@ -102,8 +139,20 @@ The quality sweep covers scale membership, duration, register lanes and maximum
 internal gap. All 320 compositions passed; the largest observed internal gap was
 1.45 beats, below the 1.5-beat ceiling. The silence sweep covers internal
 coverage for every profile/style pair at seeds 1, 7, 42 and 99, and all 64 cases
-passed after the performance pass. Step 5 changed only the render path, so those
-MIDI results remain valid.
+passed. Both sweeps were re-run after the Step 6 pool and hook changes.
+
+Contrast-gate distances for the three cached Rust repositories:
+
+| Pair | Anthem | Cinematic |
+|---|---:|---:|
+| bat / fd | 7/8 | 8/8 |
+| bat / ripgrep | 6/8 | 4/8 |
+| fd / ripgrep | 8/8 | 8/8 |
+
+The cinematic bat/ripgrep pair sits exactly on the 4/8 threshold. Their shared
+dimensions are mode, meter, signature and a two-BPM tempo difference; key,
+progressions, rhythms and hook contour all differ. This is the weakest pair and
+is the first thing to re-check if Step 7 changes variation selection.
 
 No WAV, stem or other generated audio is committed. Heavy output stays under
 the ignored `out/` directory.
@@ -114,7 +163,11 @@ the ignored `out/` directory.
   asserts its 1 / 4 / 4 / 5 / 4 / 1 active-part shape.
 - The same repository + style + variation index still produces identical MIDI.
 - Existing repository hooks and signature gestures are preserved; only gestures
-  owned by an explicitly rested part are skipped.
+  owned by an explicitly rested part are skipped. Hook contours are still chosen
+  from the repository fingerprint and remain stable across styles.
+- Curated progressions stay inside the repository's mode, so the hook's scale
+  and cadence behavior does not change. The Step 6 contrast gate passes on all
+  three cached repositories in both anthem and cinematic.
 - The final contrast matrix and before/after beauty scores are **not** claimed
   here. They are Step 8 deliverables and require rendered audio plus listening.
 
@@ -136,6 +189,12 @@ the ignored `out/` directory.
   mistaken for weakness.
 - Style EQ, bus compression, and the MuseScore_General A/B are still unadopted
   because they need a listening decision.
+- The curated pools trade generic familiarity for style identity. Step 8 should
+  check that five four-bar loops stretched across a section do not feel
+  repetitive, especially in contemplative where each chord lasts two bars.
+- The cinematic bat/ripgrep contrast pair is exactly at the 4/8 minimum. Any
+  later change to keys, tempo mapping or progressions can drop it below the
+  gate.
 
 ## Rendering dependencies (Step 8 ready)
 
@@ -150,15 +209,7 @@ or rendered audio.
 
 ## Remaining work
 
-### Step 6 — curated progressions (next)
-
-- Replace or extend generic progression pools with curated, style-specific
-  progressions that preserve each style's identity.
-- Verify that progressions still support the phrase grammar and the repository
-  hook.
-- Keep the contrast gate and mode/root DNA behavior intact.
-
-### Step 7 — scoring and best-of selection
+### Step 7 — scoring and best-of selection (next)
 
 - Add `score.py` with objective musical-quality metrics (phrase grammar, voice
   leading, density balance, rest placement, range, repetition).
@@ -175,8 +226,8 @@ or rendered audio.
 - Audition the deferred mastering items: lofi low-pass/low shelf, cinematic and
   contemplative air shelves, anthem glue compression, and the
   MuseScore_General A/B.
-- Update `README.md` for `contemplative`, the Step 3 space policy, the Step 4
-  performance pass, the Step 5 mastering chain, scoring, and `--best-of`.
+- Update `README.md` for scoring, `--best-of`, and any Step 8 mastering
+  changes.
 - Re-run the full unit suite plus both validation sweeps.
 - Commit the final documentation and previews metadata (never the audio).
 
@@ -190,5 +241,5 @@ git pull --ff-only
 .\.venv\Scripts\python.exe tools\validate_silence.py
 ```
 
-Then start Step 6 from `8d5069f`. Keep one commit per completed step. If a step
+Then start Step 7 from `e0598d3`. Keep one commit per completed step. If a step
 fails three attempts, record the failure here and move on rather than looping.
