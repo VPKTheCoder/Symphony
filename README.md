@@ -14,6 +14,11 @@ Repository-specific examples (160 kbps MP3, each under 5 MB):
 - [bat — cinematic: heroic resolved cadences and soaring lead](examples/bat_cinematic.mp3)
 - [Cinematic profile demo](examples/cinematic.mp3) · [Lo-fi profile demo](examples/lofi.mp3) · [Anthem profile demo](examples/anthem.mp3)
 
+The committed previews are the earlier identity-demo set and are unchanged.
+The final beauty-upgrade renders stay under ignored `out/step8/`; see
+[docs/BEAUTY_REPORT.md](docs/BEAUTY_REPORT.md) for their scores, measurements
+and listening checklist.
+
 Each song has its own fingerprint-derived key and hook. The signature is
 introduced, developed, brought back at the climax, and recalled in the outro.
 See the timeline JSON emitted beside each render for timestamps and a listening

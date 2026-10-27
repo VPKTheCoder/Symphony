@@ -1,10 +1,10 @@
 # Mastering and SoundFont research
 
-Status: **Step 5 complete, 2026-10-27**
+Status: **Step 5 complete; Step 8 A/B measured, 2026-10-27**
 
 This note records the soundfont decision and the mastering audit performed after
-the Step 4 performance pass. It is the reference for Step 8's rendered
-comparison.
+the Step 4 performance pass. It is the reference for the Step 8 rendered
+comparison and final decision.
 
 ## SoundFont decision
 
@@ -106,17 +106,33 @@ Band values are share of total spectral power in dB. The balances follow the
 arrangements: anthem is the brightest and most present, lofi is the darkest,
 and contemplative is warm and wide. No tonal equalizer is applied yet.
 
-## Deliberately deferred to Step 8
+## Step 8 audition result
 
-- **Style EQ and bus compression.** Candidate starting points are a gentle
-  low-pass and low shelf for lofi, a small air shelf for cinematic/contemplative,
-  and 1-2 dB of glue compression on anthem. They are not adopted without an
-  audition because they can easily make the identity worse.
-- **MuseScore_General A/B.** Render the same four MIDI files through both banks
-  and compare the five parts before considering a switch.
-- **Subjective listening.** The measurements above are objective. The final
-  judgment about pocket, blend, and musicality still needs ears on the rendered
-  previews.
+The four candidates were rendered from the final small-profile masters at seed
+1, gain-matched to the base loudness, and measured with the same chain.
+
+| Style | Candidate | Centroid base -> candidate | LRA base -> candidate | Candidate peak | Decision |
+|---|---|---:|---:|---:|---|
+| lofi | low-pass 14 kHz + low shelf +2 dB at 180 Hz | 470 -> 458 Hz | 8.6 -> 8.5 LU | -1.2 dBTP | not adopted |
+| cinematic | air shelf +1.5 dB at 8 kHz | 490 -> 489 Hz | 14.9 -> 14.9 LU | -1.5 dBTP | not adopted |
+| contemplative | air shelf +1.0 dB at 9 kHz | 434 -> 434 Hz | 11.2 -> 11.3 LU | -1.7 dBTP | not adopted |
+| anthem | glue compressor -18 dB, 2:1, 20/250 ms | 623 -> 613 Hz | 8.6 -> 6.4 LU | -0.4 dBTP | not adopted |
+
+None is adopted. The lofi shelf changes the centroid by only 12 Hz and slightly
+reduces the loudness range; the cinematic and contemplative shelves move the
+centroid by 1 Hz or less. The anthem compressor spends 2.2 LU of loudness range
+and pushes the candidate peak to -0.4 dBTP, worse than the current -1.5 dBTP
+master. The candidate WAVs remain under ignored `out/step8/ab/` for optional
+human audition only.
+
+**MuseScore_General.** The bank is not installed locally, so the A/B was not
+performed. Keep GeneralUser GS v1.471 until a matched-loudness audition across
+all five parts shows a clear improvement. Switching without that evidence would
+change every timbre and invalidate the committed identity demos.
+
+**Subjective listening.** The measurements above are objective. The final
+judgment about pocket, blend, and musicality still needs ears on the rendered
+previews; the checklist is in `docs/BEAUTY_REPORT.md`.
 
 ## Reproduction
 

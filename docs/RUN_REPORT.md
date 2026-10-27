@@ -1,5 +1,9 @@
 # Symphony run report
 
+> Historical note: this report covers the earlier repository-identity upgrade
+> and its own Steps 1-8. The current musical-beauty upgrade and its final
+> checkpoint are in [BEAUTY_REPORT.md](BEAUTY_REPORT.md).
+
 ## Step 1 — baseline verification
 
 - Unit tests: **10 passed** on the existing local Python 3.14 environment.
