@@ -1,8 +1,8 @@
 # Musical beauty upgrade — checkpoint
 
-Status: **Steps 1–3 complete. Steps 4–8 remain.**
+Status: **Steps 1-4 complete. Steps 5-8 remain.**
 Branch: `main`  
-HEAD at checkpoint: `6f02c82`  
+HEAD at checkpoint: `105212c`  
 Last verified: 2026-10-27
 
 This document is the continuation point for the eight-step musical-beauty
@@ -16,6 +16,7 @@ deferred, and the exact next move.
 | 1 | Phrase-grammar melody engine for lead instruments | `c18de00` |
 | 2 | `contemplative` slow style | `7dddfb8` |
 | 3 | Arrangement space, phrase rests, density budgets | `6f02c82` |
+| 4 | Ensemble pocket, phrase dynamics, metric accents | `105212c` |
 
 ### Step 3 details
 
@@ -35,18 +36,45 @@ deferred, and the exact next move.
   there was the cause of the two initial test failures and is now fixed.
 - New coverage lives in `tests/test_space.py`.
 
+### Step 4 details
+
+- A deterministic ensemble pass in `symphony/performance.py` runs after all
+  instruments are written and **before** the space policy, so a swung or
+  accented note that lands in a rest is still removed.
+- `lofi` is the only style with a global pocket: its `0.62` swing ratio becomes
+  a `0.12`-beat delay on offbeats. The delay is applied to every non-piano part,
+  including drums and the lead. Piano is excluded because it already applies
+  swing internally; shifting it twice would distort the comping.
+- Notes that share an onset (chords, kick-plus-snare, strum spreads) move
+  together. A swung note is skipped if it would overtake a separate later
+  attack, and its new onset is clamped inside the section.
+- Support parts follow a four-bar phrase arc: neutral first bar, lift in the
+  second, peak in the third, release in the fourth. The arc is scaled by
+  `phrase_dynamic`; a small `metric_accent` lifts the downbeat and, more
+  quietly, beat 3. Drum movement is reduced and piano accenting is left to the
+  comping engine.
+- Per-style values: cinematic `3.5 / 2.5`, lofi `2.5 / 1.5`, anthem
+  `2.0 / 2.0`, contemplative `4.0 / 1.5` (`phrase_dynamic / metric_accent`).
+- Lead velocity remains owned by the melody engine; only `support` roles
+  receive the new dynamics. No random source is used, so MIDI stays
+  byte-identical for the same profile, style and variation index.
+- New coverage lives in `tests/test_performance.py` (swing placement, phrase
+  arc, accents, lead preservation, velocity/timing bounds, byte determinism).
+
 ## Verification at this checkpoint
 
 | Check | Command | Result |
 |---|---|---|
-| Unit suite | `.\.venv\Scripts\python.exe -m unittest discover -s tests -q` | **31 passed** |
+| Unit suite | `.\.venv\Scripts\python.exe -m unittest discover -s tests -q` | **39 passed** |
 | Quality sweep | `.\.venv\Scripts\python.exe tools\validate_quality.py` | **320 / 320 passed** |
 | Silence sweep | `.\.venv\Scripts\python.exe tools\validate_silence.py` | **64 / 64 passed** |
 | Determinism | Covered by the unit suite | Byte-identical MIDI for same profile + style + seed |
 
 The quality sweep covers scale membership, duration, register lanes and maximum
-internal gap. The silence sweep covers internal coverage for every profile/style
-pair at seeds 1, 7, 42 and 99.
+internal gap. All 320 compositions passed; the largest observed internal gap was
+1.45 beats, below the 1.5-beat ceiling. The silence sweep covers internal
+coverage for every profile/style pair at seeds 1, 7, 42 and 99, and all 64 cases
+passed after the performance pass.
 
 No WAV, stem or other generated audio is committed. Heavy output stays under
 the ignored `out/` directory.
@@ -70,6 +98,10 @@ the ignored `out/` directory.
 - Meter-warped pieces need auditioning at section boundaries; the space pass
   now uses the correct pre-warp grid, but only listening confirms the seams.
 - Drum density caps may soften the cinematic climax more than intended.
+- Step 4's swing and phrase dynamics are objective MIDI changes, not yet
+  auditioned. Step 8 must check that the lofi pocket does not smear section
+  seams, and that support-only arcs do not make the accompaniment feel
+  detached from the lead.
 
 ## Rendering dependency (Step 8 blocker)
 
@@ -90,21 +122,12 @@ Do not commit the soundfont or rendered audio.
 
 ## Remaining work
 
-### Step 4 — performance shaping (next)
-
-- Add phrase-level velocity arcs and accents instead of flat per-instrument
-  dynamics.
-- Add deterministic micro-timing/legato shaping where it improves feel without
-  violating the byte-identical contract.
-- Keep the existing final ritardando; audition its interaction with new rests.
-- Add tests for determinism and for velocity/timing bounds.
-
-### Step 5 — soundfont and mastering research
+### Step 5 — soundfont and mastering research (next)
 
 - Evaluate verified redistributable soundfont options; keep GeneralUser GS
   unless a clearly better, licensed option is found.
 - Audit the mastering chain (EQ, compression, reverb, loudness) against the
-  three style identities.
+  four style identities.
 - Document any adopted asset or chain change, including licensing.
 
 ### Step 6 — curated progressions
@@ -129,8 +152,8 @@ Do not commit the soundfont or rendered audio.
 - Render all requested profile/style combinations with the verified soundfont.
 - Complete the before/after scorecard, listening notes, strengths/weaknesses,
   and final contrast matrix.
-- Update `README.md` for `contemplative`, Step 3 space policy, scoring, and
-  `--best-of`.
+- Update `README.md` for `contemplative`, the Step 3 space policy, the Step 4
+  performance pass, scoring, and `--best-of`.
 - Re-run the full unit suite plus both validation sweeps.
 - Commit the final documentation and previews metadata (never the audio).
 
@@ -144,5 +167,5 @@ git pull --ff-only
 .\.venv\Scripts\python.exe tools\validate_silence.py
 ```
 
-Then start Step 4 from `6f02c82`. Keep one commit per completed step. If a step
+Then start Step 5 from `105212c`. Keep one commit per completed step. If a step
 fails three attempts, record the failure here and move on rather than looping.
