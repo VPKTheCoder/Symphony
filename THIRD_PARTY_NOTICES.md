@@ -12,7 +12,10 @@ beside the SoundFont as `soundfonts/LICENSE-GeneralUser-GS.txt` when installed.
 License v2.0 permits use for private or commercial music creation and software
 projects, modification, and redistribution with its license and attribution.
 The license also notes uncertainty about the provenance of some contained
-samples. Read the accompanying license before redistributing the bank.
+samples. Read the accompanying license before redistributing the bank. The
+installed bank is 31,281,186 bytes and is not committed; `tools/setup.py`
+verifies the release archive SHA-256 before extracting it. See
+`docs/MASTERING.md` for the installed hash and the soundfont evaluation.
 
 ## FluidSynth
 

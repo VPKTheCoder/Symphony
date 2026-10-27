@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import math
 import os
 import shutil
 import subprocess
@@ -55,43 +57,12 @@ def render_track(
     raw = Path(raw_name)
     raw.unlink(missing_ok=True)
 
-    synth_command = [
-        str(synth),
-        "-n",
-        "-i",
-        "-q",
-        "-F",
-        str(raw),
-        "-r",
-        "44100",
-        "-L",
-        "2",
-        "-g",
-        "0.85",
-        "-o",
-        "synth.reverb.active=1",
-        "-o",
-        f"synth.reverb.room-size={style.reverb_room:.3f}",
-        "-o",
-        f"synth.reverb.damp={style.reverb_damping:.3f}",
-        "-o",
-        "synth.reverb.width=0.82",
-        "-o",
-        f"synth.reverb.level={style.reverb_level:.3f}",
-        "-o",
-        "synth.chorus.active=0",
-        "-o",
-        "synth.polyphony=256",
-        str(sf2),
-        str(midi),
-    ]
+    synth_command = _synth_command(synth, sf2, midi, raw, style)
     _run(synth_command, "FluidSynth")
 
-    normalize_filter = (
-        f"loudnorm=I={style.target_lufs:.1f}:TP=-1.5:LRA=11,"
-        "areverse,afade=t=in:st=0:d=1.2,areverse,"
-        "alimiter=limit=0.95"
-    )
+    duration = midi_end + 3.0
+    measurement = _measure_loudness(ffmpeg, raw, style, duration)
+    normalize_filter = mastering_filter(style, measurement)
     wav_command = [
         ffmpeg,
         "-y",
@@ -99,7 +70,7 @@ def render_track(
         "-loglevel",
         "error",
         "-t",
-        f"{midi_end + 3.0:.3f}",
+        f"{duration:.3f}",
         "-i",
         str(raw),
         "-af",
@@ -150,6 +121,155 @@ def render_track(
             stem_mp3.unlink(missing_ok=True)
             stem_paths.append(stem_wav)
     return RenderResult(wav_path=wav, mp3_path=mp3, stem_paths=tuple(stem_paths))
+
+
+def _synth_command(
+    synth: str,
+    sf2: Path,
+    midi: Path,
+    raw: Path,
+    style: Style,
+) -> list[str]:
+    """Render float samples so peaks above 0 dBFS are not clipped by the file stage."""
+
+    return [
+        str(synth),
+        "-n",
+        "-i",
+        "-q",
+        "-F",
+        str(raw),
+        "-r",
+        "44100",
+        "-L",
+        "2",
+        "-g",
+        "0.85",
+        "-o",
+        "synth.reverb.active=1",
+        "-o",
+        f"synth.reverb.room-size={style.reverb_room:.3f}",
+        "-o",
+        f"synth.reverb.damp={style.reverb_damping:.3f}",
+        "-o",
+        "synth.reverb.width=0.82",
+        "-o",
+        f"synth.reverb.level={style.reverb_level:.3f}",
+        "-o",
+        "synth.chorus.active=0",
+        "-o",
+        "synth.polyphony=256",
+        "-o",
+        "audio.file.format=float",
+        str(sf2),
+        str(midi),
+    ]
+
+
+def mastering_filter(
+    style: Style,
+    measurement: dict[str, str] | None = None,
+) -> str:
+    """Build the ffmpeg mastering chain for a style.
+
+    The limiter is a safety net, not a leveler: ffmpeg's ``alimiter`` auto-level
+    defaults to on and silently pushes every master above its loudness target,
+    so it is explicitly disabled.
+    """
+
+    loudnorm = (
+        "highpass=f=20,"
+        f"loudnorm=I={style.target_lufs:.1f}:TP=-1.5:LRA=11:linear=true"
+    )
+    if measurement:
+        loudnorm += (
+            f":measured_I={measurement['input_i']}"
+            f":measured_TP={measurement['input_tp']}"
+            f":measured_LRA={measurement['input_lra']}"
+            f":measured_thresh={measurement['input_thresh']}"
+            f":offset={measurement['target_offset']}"
+        )
+    return (
+        f"{loudnorm},areverse,afade=t=in:st=0:d=1.2,areverse,"
+        "alimiter=limit=0.95:level=false"
+    )
+
+
+def _measure_loudness(
+    ffmpeg: str,
+    raw: Path,
+    style: Style,
+    duration: float,
+) -> dict[str, str] | None:
+    """Measure the trimmed raw render for the second loudnorm pass."""
+
+    command = [
+        ffmpeg,
+        "-hide_banner",
+        "-nostats",
+        "-t",
+        f"{duration:.3f}",
+        "-i",
+        str(raw),
+        "-af",
+        (
+            "highpass=f=20,"
+            f"loudnorm=I={style.target_lufs:.1f}:TP=-1.5:LRA=11:"
+            "print_format=json"
+        ),
+        "-ar",
+        "44100",
+        "-ac",
+        "2",
+        "-f",
+        "null",
+        "-",
+    ]
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    return parse_loudnorm_json(completed.stderr)
+
+
+def parse_loudnorm_json(text: str) -> dict[str, str] | None:
+    """Extract the JSON summary printed by ffmpeg's loudnorm filter."""
+
+    marker = text.rfind('"input_i"')
+    if marker < 0:
+        return None
+    start = text.rfind("{", 0, marker)
+    end = text.find("}", marker)
+    if start < 0 or end < 0:
+        return None
+    try:
+        payload = json.loads(text[start : end + 1])
+    except json.JSONDecodeError:
+        return None
+    required = (
+        "input_i",
+        "input_tp",
+        "input_lra",
+        "input_thresh",
+        "target_offset",
+    )
+    if not all(key in payload for key in required):
+        return None
+    try:
+        numbers = [float(payload[key]) for key in required]
+    except (TypeError, ValueError):
+        return None
+    if not all(math.isfinite(number) for number in numbers):
+        return None
+    return {key: str(payload[key]) for key in required}
 
 
 def _safe_stem_name(name: str, index: int) -> str:
